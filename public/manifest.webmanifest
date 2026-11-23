@@ -1,0 +1,17 @@
+{
+  "name": "Disziplin",
+  "short_name": "Disziplin",
+  "description": "Disziplin schlägt Motivation. Dein Tag, Schritt für Schritt.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#110c2b",
+  "theme_color": "#110c2b",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
