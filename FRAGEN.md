@@ -14,3 +14,4 @@ Echte Rückfragen, die ich in der Nacht nicht klären konnte. Für jede steht, w
 10. **Bücher und Quellen:** Welche Bücher sollen rein, und von welchen Quellen sollen die Lerninhalte kommen? Die 11 Platzhalter-Pakete sind nicht quellengeprüft.
 11. **Push:** Reicht es, wenn Erinnerungen nur bei geöffneter App kommen, oder soll ich den Server-Push (Edge Function) fertig einrichten? Dafür brauche ich das Supabase-Projekt.
 12. **Name des Fokus-Kurzbefehls:** Aktuell "Fokus Lernen". Anders gewünscht?
+13. **Vercel-Deployment fehlt noch.** Mein Zugriff auf Vercel wurde mit 403 abgewiesen (Team-Scope nicht freigegeben). Es gibt deshalb noch keinen Link. Zwei Wege: (a) in Vercel dem Claude-Zugang Zugriff auf dein Team geben, dann deploye ich sofort; (b) selbst auf vercel.com *Add New > Project*, Repo `App-Nils-Disziplin`, Branch `claude/festive-edison-q7qml9` wählen, auf *Deploy* tippen (Einstellungen stehen in `vercel.json`). Es kostet nichts (Hobby).

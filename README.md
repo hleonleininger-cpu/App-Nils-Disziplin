@@ -2,7 +2,7 @@
 
 Persönliche Lern- und Alltags-App für Nils. Sie kennt den ganzen Tag (Stundenplan, feste Termine, flexible Aufgaben) und zeigt jederzeit genau eine Sache: **Das ist jetzt dran.** Motto: Disziplin schlägt Motivation.
 
-Version 1, über Nacht gebaut. Sie läuft, ist getestet (57 Unit-Tests, ein End-to-End-Lauf mit simulierten Tagen) und hat bekannte Lücken, die unten stehen.
+Version 1, über Nacht gebaut. **Noch nicht deployt** (Vercel-Zugriff wurde abgewiesen, siehe FRAGEN.md Nr. 13). Sie läuft, ist getestet (57 Unit-Tests, ein End-to-End-Lauf mit simulierten Tagen) und hat bekannte Lücken, die unten stehen.
 
 ## Start
 
