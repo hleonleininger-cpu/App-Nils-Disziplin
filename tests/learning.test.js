@@ -131,3 +131,46 @@ describe('Sitzung und Wissen', () => {
     expect(m).toEqual([true, true, true, false]);
   });
 });
+
+import { routeKey, TABLES } from '../src/core/sync.js';
+describe('Sync-Zuordnung', () => {
+  it('ordnet Schlüssel den Tabellen zu und zurück', () => {
+    const cases = { 'day:2026-11-24': ['day_log', { day: '2026-11-24' }], settings: ['settings', { key: 'settings' }], timetable: ['settings', { key: 'timetable' }], meta: ['streak', {}], books: ['books', {}], learn: ['topics', { key: 'learn' }], 'pack:x-y': ['packs', { id: 'x-y' }], 'excuse:2026-11-24': ['excuses', { day: '2026-11-24' }], 'hw:abc': ['homework', { id: 'abc' }] };
+    for (const [k, [t, cols]] of Object.entries(cases)) {
+      const r = routeKey(k);
+      expect(r.t, k).toBe(t);
+      expect(r.to(k)).toEqual(cols);
+      expect(r.from(cols), k).toBe(k);
+    }
+    expect(routeKey('irgendwas').t).toBe('settings');
+    expect(TABLES.length).toBe(9);
+  });
+});
+
+describe('Import: Fehlermeldungen', () => {
+  const good = { topic: 'finanzen', title: 'T', quiz: [{ q: 'A?', options: ['a', 'b'], answer: 0 }] };
+  it('unvollständiges JSON meldet fehlende Klammer statt Feldfehler', () => {
+    const txt = JSON.stringify(good, null, 2).slice(0, -2); // letzte } weg
+    const r = parseImport(txt);
+    expect(r.fatal).toMatch(/JSON unvollständig oder fehlerhaft/);
+    expect(r.fatal).toMatch(/fehlen 1 schließende geschweifte Klammer/);
+    expect(r.results).toEqual([]);
+  });
+  it('Code-Zaun und Einleitung stören nicht', () => {
+    const r = parseImport('Hier ist dein Paket:\n```json\n' + JSON.stringify(good) + '\n```\nViel Erfolg');
+    expect(r.fatal).toBeNull();
+    expect(r.results[0].ok).toBe(true);
+  });
+  it('JSON mit Text davor ohne Zaun wird nicht als Markdown behandelt', () => {
+    const r = parseImport('Paket:\n' + JSON.stringify(good));
+    expect(r.results[0].ok).toBe(true);
+  });
+  it('ausgepackt aus {"pack": {...}}', () => {
+    const r = parseImport(JSON.stringify({ pack: good }));
+    expect(r.results[0].ok).toBe(true);
+  });
+  it('nennt Zeile bei Syntaxfehler', () => {
+    const r = parseImport('{\n "topic": "x",\n "title": "y"\n "quiz": []\n}');
+    expect(r.fatal).toMatch(/Zeile \d/);
+  });
+});

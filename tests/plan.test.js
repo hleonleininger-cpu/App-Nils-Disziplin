@@ -67,23 +67,25 @@ describe('Plan Woche A, Montag 16.11.', () => {
 });
 
 describe('Ausfall', () => {
-  it('Ausfall der 3./4. Stunde an einem Dienstag (A) macht ein Fenster mit Gym-Vorschlag', () => {
-    const d = buildDay({ date: '2026-11-17', S, TT, D: { cancelled: [3, 4] }, now: null });
+  it('Ausfall der 3./4. Stunde an einem Dienstag (A) macht ein Fenster, aber ohne Gym (Gym liegt abends)', () => {
+    const d = buildDay({ date: '2026-12-01', S, TT, D: { cancelled: [3, 4] }, now: null });
     expect(d.windows).toHaveLength(1);
     const w = d.windows[0];
     expect(w.start).toBe(m(9, 40));
     expect(w.minutes).toBe(95);
-    expect(w.options.map((o) => o.kind)).toEqual(expect.arrayContaining(['learn', 'sport']));
+    expect(w.options.map((o) => o.kind)).toEqual(expect.arrayContaining(['learn', 'sd', 'read']));
+    expect(w.options.map((o) => o.kind)).not.toContain('sport');
+    expect(w.options.map((o) => o.kind)).not.toContain('free');
     expect(w.source).toBe('ausfall');
   });
-  it('Ausfall wird übernommen: Gym im Fenster, kein zweites Gym am Nachmittag', () => {
-    // Do 26.11. (Woche A) hat 5/6 Physik; Ausfall von 5/6 gibt 11:35-13:10 = 95 Min; Do = Gym
+  it('Ausfall am Joggen-Tag: Joggen passt ins Fenster und wird dann nicht doppelt geplant', () => {
+    // Mi 2.12. (Woche A) = Joggen; 5/6 fällt aus: 11:35-13:10
     const D = { cancelled: [5, 6], assign: { w695: 'sport' } };
-    const d = buildDay({ date: '2026-11-26', S, TT, D, now: null });
+    const d = buildDay({ date: '2026-12-02', S, TT, D, now: null });
     const sports = d.blocks.filter((b) => b.kind === 'sport');
     expect(sports).toHaveLength(1);
     expect(sports[0].window).toBe(true);
-    expect(sports[0].dur).toBe(75);
+    expect(sports[0].dur).toBe(45);
   });
   it('Schulschluss rückt vor, wenn die letzte Stunde ausfällt', () => {
     const d = buildDay({ date: '2026-11-16', S, TT, D: { cancelled: [7, 8] }, now: null });
@@ -107,15 +109,90 @@ describe('Verschlafen', () => {
   });
 });
 
-describe('Freizeitlimit', () => {
-  it('Limit minus Ausgleich und verbrauchte Zeit', () => {
-    const d = buildDay({ date: '2026-11-24', S, TT, comp: { freeMinus: 15 }, D: { freeLog: [{ min: 20 }] }, now: m(15) });
-    expect(d.free.limit).toBe(45);
-    expect(d.free.remaining).toBe(25);
+describe('Freizeit (neues Modell)', () => {
+  it('jeder genommene 15-Minuten-Block steht vorn im Plan und schiebt den Rest nach hinten', () => {
+    const D = { wake: m(7), done: { lunch: { start: 790, end: 800, min: 10 } } };
+    const a = buildDay({ date: '2026-11-24', S, TT, D, now: m(15) });
+    const b = buildDay({ date: '2026-11-24', S, TT, D: { ...D, freeSlots: 1 }, now: m(15) });
+    const free = b.blocks.find((x) => x.kind === 'free');
+    expect(free.dur).toBe(15);
+    expect(free.start).toBe(m(15));
+    const learnA = a.blocks.find((x) => x.id === 'learn');
+    const learnB = b.blocks.find((x) => x.id === 'learn');
+    expect(learnB.start).toBe(learnA.start + 15);
   });
-  it('verbraucht = kein Freizeitblock mehr', () => {
-    const d = buildDay({ date: '2026-11-24', S, TT, D: { freeLog: [{ min: 60 }] }, now: m(15) });
-    expect(d.blocks.find((b) => b.kind === 'free')).toBeUndefined();
+  it('ohne Druck gibt es keinen Freizeitblock und kein Limit', () => {
+    const d = buildDay({ date: '2026-11-24', S, TT, D: { wake: m(7) }, now: m(15) });
+    expect(d.blocks.find((x) => x.kind === 'free')).toBeUndefined();
+  });
+});
+
+describe('Selbstverteidigung, Gym, Handball', () => {
+  const D0 = { wake: m(7), done: { lunch: { start: 790, end: 800, min: 10 } } };
+  it('Selbstverteidigung: jeden Tag 15 Minuten, auch an Gym-Tagen, und fällt nicht aus dem Plan', () => {
+    for (const date of ['2026-11-24', '2026-11-26', '2026-11-29', '2026-11-23']) {
+      const d = buildDay({ date, S, TT, D: D0, now: m(15) });
+      const sd = d.blocks.find((x) => x.kind === 'sd');
+      expect(sd, date).toBeDefined();
+      expect(sd.dur).toBe(15);
+      expect(sd.sub).toMatch(/Seilspringen/);
+      expect(d.overflow.some((o) => o.kind === 'sd'), date).toBe(false);
+    }
+  });
+  it('Gym liegt frühestens ab 19:00, hat überall dieselbe Dauer und eine Beschreibung nach Uhrzeit', () => {
+    const d = buildDay({ date: '2026-11-24', S, TT, D: D0, now: m(15) }); // Di = Gym
+    const g = d.blocks.find((x) => x.id === 'sport');
+    expect(g.title).toBe('Gym');
+    expect(g.start).toBeGreaterThanOrEqual(m(19));
+    expect(g.dur).toBe(75);
+    expect(g.sub).toBe('Training am Abend');
+    expect(g.sub).not.toMatch(/Min/);
+    const mid = buildDay({ date: '2026-11-24', S, TT, D: D0, now: m(18) });
+    expect(mid.blocks.find((x) => x.id === 'sport').sub).toBe('Training am Abend');
+    // Um 20:32 passen 75 Minuten vor den Abendcheck nicht mehr: Gym fällt nicht gekürzt oder falsch beschriftet an, sondern wandert auf morgen
+    const late = buildDay({ date: '2026-11-24', S, TT, D: D0, now: m(20, 32) });
+    expect(late.blocks.find((x) => x.id === 'sport')).toBeUndefined();
+    expect(late.overflow.some((o) => o.id === 'sport')).toBe(true);
+  });
+  it('Joggen darf schon um 16:00 liegen', () => {
+    const d = buildDay({ date: '2026-11-25', S, TT, D: D0, now: m(15) }); // Mi = Joggen
+    const j = d.blocks.find((x) => x.id === 'sport');
+    expect(j.title).toBe('Joggen');
+    expect(j.start).toBeLessThan(m(19));
+    expect(j.start).toBeGreaterThanOrEqual(m(16));
+  });
+  it('Handball: Hin- und Rückweg je 20 Minuten fest eingeplant (Mo und Fr)', () => {
+    const mo = buildDay({ date: '2026-11-23', S, TT, now: null });
+    const hin = mo.blocks.find((x) => x.id === 'handball-hin');
+    const rueck = mo.blocks.find((x) => x.id === 'handball-rueck');
+    expect([hin.start, hin.end]).toEqual([m(18, 10), m(18, 30)]);
+    expect([rueck.start, rueck.end]).toEqual([m(20, 15), m(20, 35)]);
+    const fr = buildDay({ date: '2026-11-27', S, TT, now: null });
+    expect(fr.blocks.find((x) => x.id === 'handball-hin').start).toBe(m(17, 40));
+  });
+  it('Handball an anderen Tagen als Mo/Fr wird ignoriert', () => {
+    const S2 = JSON.parse(JSON.stringify(S));
+    S2.sport[2] = { type: 'handball', start: '18:00', end: '20:00' };
+    const d = buildDay({ date: '2026-11-25', S: S2, TT, now: null });
+    expect(d.blocks.find((x) => x.id === 'handball')).toBeUndefined();
+  });
+});
+
+describe('Hausaufgaben', () => {
+  it('werden mit Aufwand eingeplant, in Stücken von höchstens 60 Minuten, vor dem Lernen', () => {
+    const hw = [{ id: 'h1', subject: 'Mathe', title: 'Blatt 4', due: '2026-11-26', effort: 120, remaining: 120 }];
+    const D = { wake: m(7), done: { lunch: { start: 790, end: 800, min: 10 } } };
+    const d = buildDay({ date: '2026-11-24', S, TT, D, homework: hw, now: m(15) });
+    const b = d.blocks.find((x) => x.kind === 'hw');
+    expect(b.dur).toBe(60);
+    expect(b.title).toMatch(/Mathe/);
+    expect(b.start).toBeLessThanOrEqual(d.blocks.find((x) => x.id === 'learn').start);
+  });
+  it('nach einem erledigten Stück kommt das nächste', () => {
+    const hw = [{ id: 'h1', subject: 'Mathe', title: 'Blatt 4', effort: 120, remaining: 60 }];
+    const D = { wake: m(7), hwChunks: { h1: 1 }, done: { lunch: { start: 790, end: 800, min: 10 }, 'hw-h1-1': { start: 900, end: 960, min: 60 } } };
+    const d = buildDay({ date: '2026-11-24', S, TT, D, homework: hw, now: m(16, 5) });
+    expect(d.blocks.filter((x) => x.kind === 'hw').map((x) => x.status)).toEqual(['done', 'pending']);
   });
 });
 

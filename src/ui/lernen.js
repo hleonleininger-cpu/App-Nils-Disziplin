@@ -7,6 +7,7 @@ import { todayStr } from '../lib/clock.js';
 import { addDays, niceDate } from '../lib/dates.js';
 import { esc, copyText, slug } from '../lib/util.js';
 import { bar, pageHead } from './components.js';
+import { icon } from './icons.js';
 import { ACT, go } from './nav.js';
 import { modal, toast } from './fx.js';
 
@@ -26,7 +27,6 @@ export default {
   live: true,
   render() {
     const today = todayStr();
-    A.ensureTopicPlan(today);
     const topic = A.topicFor(today);
     const learn = store.getLearn();
     const packs = A.getPacks();
@@ -36,19 +36,19 @@ export default {
     const p = L.progressOf(learn, topic.id);
     const fod = L.formatOfDay(today);
     return `${pageHead('Lernen', 'Eine Sache nach der anderen, bis sie sitzt.')}
-    <div class="topic today" style="--c:${topic.color}"><span class="em">${topic.emoji}</span><div class="grow"><small>Heute · ${fod.name}</small><b style="font-size:18px">${esc(topic.name)}</b><div style="margin-top:6px">${bar(p.k / 100, topic.color)}</div><small>${L.STATUS_TEXT[L.statusOf(p)]} · Wissen ${p.k}% · ${Math.round((D.learnSec || 0) / 60)} Min heute</small></div></div>
-    <div class="btns"><a class="btn primary" href="#/session">▶ Lektion starten</a><a class="btn" href="#/session?mini=1">⚡ 5-Min-Mini</a></div>
-    <div class="card"><div class="row sp"><b>🌙 Morgen: ${tomorrow ? tomorrow.emoji + ' ' + esc(tomorrow.name) : '?'}</b></div>
+    <div class="topic today" style="--c:${topic.color}"><span class="em">${icon(topic.icon || 'book', 26)}</span><div class="grow"><small>Heute · ${fod.name}</small><b style="font-size:18px">${esc(topic.name)}</b><div style="margin-top:6px">${bar(p.k / 100, topic.color)}</div><small>${L.STATUS_TEXT[L.statusOf(p)]} · Wissen ${p.k}% · ${Math.round((D.learnSec || 0) / 60)} Min heute</small></div></div>
+    <div class="btns"><a class="btn primary" href="#/session">Lektion starten</a><a class="btn" href="#/session?mini=1">5-Min-Mini</a></div>
+    <div class="card"><div class="row sp"><b>Morgen: ${tomorrow ? esc(tomorrow.name) : '?'}</b></div>
       <p class="muted" style="margin-top:6px">Lass Claude Code das Thema vorab recherchieren. Kopiere den Auftrag, schick ihn ab, importiere das Ergebnis.</p>
-      <div class="btns"><button class="btn" data-act="l-copy" data-topic="${esc(tomorrowId)}">📋 Auftrag kopieren</button><a class="btn" href="#/import">📥 Paket importieren</a></div></div>
+      <div class="btns"><button class="btn" data-act="l-copy" data-topic="${esc(tomorrowId)}">${icon('clip', 16)} Auftrag kopieren</button><a class="btn" href="#/import">${icon('download', 16)} Paket importieren</a></div></div>
     <div class="sec-title"><h2>Themen</h2><button class="link" data-act="l-add">+ Thema</button></div>
     ${A.getTopics().map((t) => {
       const pr = L.progressOf(learn, t.id);
       const n = L.packsFor(t.id, packs).length;
-      return `<div class="topic ${t.id === topic.id ? 'today' : ''}" style="--c:${t.color};${pr.paused ? 'opacity:.55' : ''}"><span class="em">${t.emoji}</span><div class="grow"><b>${esc(t.name)}</b><div style="margin:6px 0">${bar(pr.k / 100, t.color)}</div><small>${L.STATUS_TEXT[L.statusOf(pr)]} · ${pr.k}% · ${n} Paket${n === 1 ? '' : 'e'}${pr.paused ? ' · pausiert' : ''}</small>
-        <div class="row" style="margin-top:8px;gap:8px"><button class="btn sm" data-act="l-now" data-id="${esc(t.id)}">Heute dieses</button><button class="btn sm" data-act="l-pause" data-id="${esc(t.id)}">${pr.paused ? 'Fortsetzen' : 'Pausieren'}</button><button class="btn sm" data-act="l-copy" data-topic="${esc(t.id)}">📋</button></div></div></div>`;
+      return `<div class="topic ${t.id === topic.id ? 'today' : ''}" style="--c:${t.color};${pr.paused ? 'opacity:.55' : ''}"><span class="em">${icon(t.icon || 'star', 24)}</span><div class="grow"><b>${esc(t.name)}</b><div style="margin:6px 0">${bar(pr.k / 100, t.color)}</div><small>${L.STATUS_TEXT[L.statusOf(pr)]} · ${pr.k}% · ${n} Paket${n === 1 ? '' : 'e'}${pr.paused ? ' · pausiert' : ''}</small>
+        <div class="row" style="margin-top:8px;gap:8px"><button class="btn sm" data-act="l-now" data-id="${esc(t.id)}">Heute dieses</button><button class="btn sm" data-act="l-pause" data-id="${esc(t.id)}">${pr.paused ? 'Fortsetzen' : 'Pausieren'}</button><button class="btn sm" data-act="l-copy" data-topic="${esc(t.id)}" title="Auftrag kopieren">${icon('clip', 14)}</button></div></div></div>`;
     }).join('')}
-    <div class="btns"><a class="btn" href="#/buecher">📚 Bücher</a><a class="btn" href="#/import">📥 Importieren</a></div>`;
+    <div class="btns"><a class="btn" href="#/buecher">Bücher</a><a class="btn" href="#/hausaufgaben">Hausaufgaben</a><a class="btn" href="#/import">Importieren</a></div>`;
   },
 };
 
@@ -65,13 +65,13 @@ ACT['l-pause'] = (el) => {
   A.setTopicPaused(el.dataset.id, !paused);
 };
 ACT['l-add'] = () => {
-  modal(`<h2>Neues Thema</h2><label class="f">Name</label><input type="text" id="tn" placeholder="z. B. Rhetorik"><label class="f">Emoji</label><input type="text" id="te" value="⭐" maxlength="4"><label class="f">Farbe</label><input type="color" id="tc" value="#ff9a1f" style="height:46px"><label class="f">Kurzbeschreibung</label><input type="text" id="th">
+  modal(`<h2>Neues Thema</h2><label class="f">Name</label><input type="text" id="tn" placeholder="z. B. Rhetorik"><label class="f">Farbe</label><input type="color" id="tc" value="#ff9a1f" style="height:46px"><label class="f">Kurzbeschreibung</label><input type="text" id="th">
     <div class="btns"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="ok">Anlegen</button></div>`, {
     onMount: (m, close) => (m.querySelector('#ok').onclick = () => {
       const name = m.querySelector('#tn').value.trim();
       if (!name) return;
       const list = store.getCustomTopics();
-      list.push({ id: slug(name) || 'thema-' + list.length, name, emoji: m.querySelector('#te').value || '⭐', color: m.querySelector('#tc').value, hint: m.querySelector('#th').value, custom: true });
+      list.push({ id: slug(name) || 'thema-' + list.length, name, icon: 'star', color: m.querySelector('#tc').value, hint: m.querySelector('#th').value, custom: true });
       store.set('topics', list);
       close();
       toast('Thema angelegt. Importiere jetzt ein Paket dafür.', { kind: 'good' });

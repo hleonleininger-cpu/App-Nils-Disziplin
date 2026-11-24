@@ -66,17 +66,18 @@ export const EXCUSE_CATS = [
   { id: 'notfall', label: 'Notfall' },
   { id: 'sonst', label: 'Etwas anderes' },
 ];
-export function acceptedExcusesLast7(days, today) {
+/** Akzeptierte Begründungen in derselben Kalenderwoche (Mo bis So), ohne den Tag selbst. */
+export function acceptedExcusesInWeek(days, date) {
   let n = 0;
-  for (let i = 1; i <= 7; i++) if (days[addDays(today, -i)]?.excuse?.accepted) n++;
+  for (const d of weekDates(date)) if (d !== date && days[d]?.excuse?.accepted) n++;
   return n;
 }
-export function validateExcuse({ cat, text }, recent, max = 2) {
+export function validateExcuse({ cat, text }, recent, max = 1) {
   const t = (text || '').trim();
   if (!cat) return { ok: false, msg: 'Such dir einen Grund aus.' };
   if (t.length < 20 || t.split(/\s+/).length < 4) return { ok: false, msg: 'Zu dünn. Schreib ausführlich, was los war: mindestens ein bis zwei vollständige Sätze.' };
   if (/\b(kein(e|en)? (bock|lust)|faul|vergessen|nicht gewollt|hatte keine zeit)\b/i.test(t)) return { ok: false, msg: '"Kein Bock", "vergessen" oder "keine Zeit" ist kein Grund. Das ist genau das, wogegen Disziplin da ist.' };
-  if (recent >= max) return { ok: false, msg: `Du hattest in den letzten 7 Tagen schon ${recent} akzeptierte Begründungen. Mehr gibt es nicht.` };
+  if (recent >= max) return { ok: false, msg: `Du hattest diese Woche schon ${recent === 1 ? 'eine akzeptierte Begründung' : recent + ' akzeptierte Begründungen'}. Pro Woche gibt es ${max === 1 ? 'eine' : max}. Dieser Tag zählt als verloren, wenn du nicht noch 5 Minuten lernst.` };
   return { ok: true };
 }
 
@@ -95,7 +96,7 @@ export function levelProgress(p) {
   return { level: L, into: p - a, need: b - a, frac: (p - a) / (b - a) };
 }
 export const TITLES = [
-  [1, 'Rekrut'], [3, 'Anwärter'], [5, 'Lehrling'], [8, 'Geselle'], [12, 'Praktiker'], [16, 'Stratege'], [21, 'Meister'], [27, 'Veteran'], [34, 'Eiserner'], [42, 'Legende'],
+  [1, 'Stufe I'], [3, 'Konsequent'], [5, 'Verlässlich'], [8, 'Hartnäckig'], [12, 'Souverän'], [16, 'Eisern'], [21, 'Meister'], [27, 'Elite'], [34, 'Unbeugsam'], [42, 'Legende'],
 ];
 export function titleFor(level) {
   let t = TITLES[0][1];
@@ -104,20 +105,20 @@ export function titleFor(level) {
 }
 
 // --- Tagesstatistik und Ziele ---
-export function dayStats({ date, S, TT, D, comp, now, carry = [] }) {
-  const plan = buildDay({ date, S, TT, D, comp, now, carry });
+export function dayStats({ date, S, TT, D, comp, now, carry = [], homework = [], topic = null }) {
+  const plan = buildDay({ date, S, TT, D, comp, now, carry, homework, topic });
   const learnMin = learnMinutes(D);
-  const futureMin = (D.futureSec || 0) / 60 + (plan.blocks.filter((b) => b.kind === 'read' && b.status === 'done').reduce((a, b) => a + (b.dur || 0), 0));
+  const futureMin = (D.futureSec || 0) / 60; // Zukunftswissen = Schule und Finanzen
   const doneKind = (k) => plan.blocks.some((b) => b.kind === k && b.status === 'done');
   const learnTarget = plan.weekend ? S.learnTarget.we : S.learnTarget.wk;
   const water = D.water || 0;
   const goals = [
-    { id: 'learn', label: 'Lernen', icon: '📚', frac: Math.min(1, learnMin / learnTarget), text: `${Math.round(learnMin)} / ${learnTarget} Min` },
-    { id: 'sport', label: 'Sport', icon: '💪', frac: plan.sportDone ? 1 : 0, text: plan.sportDone ? 'erledigt' : 'offen' },
-    { id: 'water', label: 'Wasser', icon: '💧', frac: Math.min(1, water / S.waterGoal), text: `${(water / 1000).toFixed(2).replace('.', ',')} / ${(S.waterGoal / 1000).toString().replace('.', ',')} L` },
-    { id: 'sd', label: 'Selbstverteidigung', icon: '🥊', frac: doneKind('sd') ? 1 : 0, text: doneKind('sd') ? 'erledigt' : 'offen' },
-    { id: 'read', label: 'Lesen', icon: '📖', frac: doneKind('read') || (D.pages || 0) > 0 ? 1 : 0, text: (D.pages || 0) > 0 ? `${D.pages} Seiten` : 'offen' },
-    { id: 'future', label: 'Zukunftswissen', icon: '🧠', frac: Math.min(1, futureMin / FUTURE_MIN), text: `${Math.round(futureMin)} / ${FUTURE_MIN} Min` },
+    { id: 'learn', label: 'Lernen', icon: 'book', frac: Math.min(1, learnMin / learnTarget), text: `${Math.round(learnMin)} / ${learnTarget} Min` },
+    { id: 'sport', label: 'Sport', icon: 'dumbbell', frac: plan.sportDone ? 1 : 0, text: plan.sportDone ? 'erledigt' : 'offen' },
+    { id: 'water', label: 'Wasser', icon: 'drop', frac: Math.min(1, water / S.waterGoal), text: `${(water / 1000).toFixed(2).replace('.', ',')} / ${(S.waterGoal / 1000).toString().replace('.', ',')} L` },
+    { id: 'sd', label: 'Selbstverteidigung', icon: 'shield', frac: doneKind('sd') ? 1 : 0, text: doneKind('sd') ? 'erledigt' : 'offen' },
+    { id: 'read', label: 'Lesen', icon: 'read', frac: doneKind('read') || (D.pages || 0) > 0 ? 1 : 0, text: (D.pages || 0) > 0 ? `${D.pages} Seiten` : 'offen' },
+    { id: 'future', label: 'Zukunftswissen', icon: 'brain', frac: Math.min(1, futureMin / FUTURE_MIN), text: `${Math.round(futureMin)} / ${FUTURE_MIN} Min` },
   ];
   const frac = goals.reduce((a, g) => a + g.frac, 0) / goals.length;
   return { plan, learnMin, futureMin, water, goals, frac, allDone: goals.every((g) => g.frac >= 1), sport: plan.sportDone, sd: doneKind('sd'), read: doneKind('read') || (D.pages || 0) > 0, pages: D.pages || 0 };

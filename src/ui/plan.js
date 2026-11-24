@@ -5,6 +5,7 @@ import { todayStr, nowMin } from '../lib/clock.js';
 import { addDays, fmt, fmtDur, isoWeek, mondayOf, niceDate, weekType, weekdayIdx, WD_SHORT, parseYmd, hm } from '../lib/dates.js';
 import { esc } from '../lib/util.js';
 import { pageHead } from './components.js';
+import { icon } from './icons.js';
 import { ACT, go, hashParams, refresh } from './nav.js';
 import { toast } from './fx.js';
 
@@ -30,7 +31,7 @@ export default {
     <div class="row sp"><button class="btn sm" data-act="p-week" data-d="-7">‹ Woche</button><span class="badge">Woche ${wt}</span><button class="btn sm" data-act="p-week" data-d="7">Woche ›</button></div>
     <div class="days" style="margin-top:10px">${days.map((d, i) => `<div class="dtab ${d === sel ? 'on' : ''} ${d === today ? 'today' : ''}" data-act="p-day" data-d="${d}">${WD_SHORT[i]}<small>${parseYmd(d).getDate()}.</small></div>`).join('')}</div>
     <div class="card"><div class="row sp"><b>${niceDate(sel)}</b><small>${plan.weekend ? 'Wochenende' : plan.noSchool ? 'Kein Unterricht' : `Schule bis ${fmt(plan.schoolEnd)}`}</small></div>
-      <div class="tl">${plan.blocks.filter((b) => b.kind !== 'bock' && b.dur > 0 && b.status !== 'skipped').map((b) => `<div class="tl-item ${b.status === 'done' || b.status === 'slept' ? 'done' : ''}" style="--c:${b.color}"><div class="t">${fmt(b.start)}</div><div class="n">${b.icon || ''} ${esc(b.title)}<small>${fmtDur(b.dur)}${b.sub ? ' · ' + esc(b.sub) : ''}</small></div><div class="st">${b.status === 'done' ? '✅' : b.status === 'missed' ? '❌' : b.status === 'slept' ? '😴' : ''}</div></div>`).join('')}</div>
+      <div class="tl">${plan.blocks.filter((b) => b.kind !== 'bock' && b.dur > 0 && b.status !== 'skipped').map((b) => `<div class="tl-item ${b.status === 'done' || b.status === 'slept' ? 'done' : ''}" style="--c:${b.color}"><div class="t">${fmt(b.start)}</div><div class="n"><b>${esc(b.title)}</b><small>${fmtDur(b.dur)}${b.sub ? ' · ' + esc(b.sub) : ''}</small></div><div class="st ${b.status === 'missed' ? 'bad' : ''}">${b.status === 'done' ? icon('check', 16) : b.status === 'missed' ? icon('x', 16) : b.status === 'slept' ? icon('moon', 16) : ''}</div></div>`).join('')}</div>
       ${plan.overflow.length ? `<p class="warn">Passt heute nicht mehr: ${plan.overflow.map((o) => esc(o.title)).join(', ')}. Wird auf die nächsten Tage verteilt.</p>` : ''}</div>
     ${wd <= 4 ? cancelPanel(sel, plan, D) : ''}
     <div class="card tight"><small>Der Stundenplan ist bearbeitbar unter Mehr > Stundenplan. Wochentyp A/B richtet sich automatisch nach der Kalenderwoche.</small></div>`;
@@ -44,9 +45,9 @@ function cancelPanel(date, plan, D) {
   return `<div class="sec-title"><h2>Ausfall eintragen</h2></div>
     <div class="card"><p class="muted" style="margin-bottom:10px">Tippe die Stunden an, die ausfallen. Die App schlägt sofort vor, was in die Lücke passt.</p>
     <div class="per">${plan.periods.map((p) => `<label><input type="checkbox" data-chg="p-cancel" data-p="${p.p}" ${cancelled.has(p.p) ? 'checked' : ''} ${p.cell ? '' : 'disabled'}>${p.p}. Std<small>${fmt(PERIODS[p.p - 1][0])}</small><small>${p.cell ? esc(subjectName(p.cell)).slice(0, 10) : 'frei'}</small></label>`).join('')}</div>
-    ${plan.windows.length ? plan.windows.map((w) => `<div class="sugg"><b>${w.source === 'ausfall' ? '❌ Ausfall' : '🕐 Freistunde'} · ${fmt(w.start)}–${fmt(w.end)} (${w.minutes} Min)</b>
-      <p class="muted" style="margin:4px 0 8px">Was passt rein? Freizeit zählt gegen dein Tageslimit (noch ${plan.free.remaining} Min).</p>
-      <div class="pill-row">${w.options.map((o) => `<span class="pill ${w.kind === o.kind ? 'on' : ''}" data-act="p-assign" data-key="${w.key}" data-kind="${o.kind}" title="${esc(o.reason)}">${o.kind === 'learn' ? '📚' : o.kind === 'sport' ? '💪' : o.kind === 'sd' ? '🥊' : o.kind === 'read' ? '📖' : '🎮'} ${esc(o.label)}</span>`).join('')}</div>
+    ${plan.windows.length ? plan.windows.map((w) => `<div class="sugg"><b>${w.source === 'ausfall' ? 'Ausfall' : 'Freistunde'} · ${fmt(w.start)}–${fmt(w.end)} (${w.minutes} Min)</b>
+      <p class="muted" style="margin:4px 0 8px">Was passt rein? Gym liegt immer abends ab 19:00, deshalb gibt es hier nur Joggen als Sportvorschlag.</p>
+      <div class="pill-row">${w.options.map((o) => `<span class="pill ${w.kind === o.kind ? 'on' : ''}" data-act="p-assign" data-key="${w.key}" data-kind="${o.kind}" title="${esc(o.reason)}">${icon(o.kind === 'learn' ? 'book' : o.kind === 'sport' ? 'run' : o.kind === 'sd' ? 'shield' : 'read', 15)} ${esc(o.label)}</span>`).join('')}</div>
       ${w.options.find((o) => o.kind === 'sport') ? `<p class="ok" style="margin-top:8px">Vorschlag: ${esc(w.options.find((o) => o.kind === 'sport').reason)}. Dann bleibt der Nachmittag frei.</p>` : ''}</div>`).join('') : ''}
     ${plan.windows.length === 0 && cancelled.size ? `<p class="muted" style="margin-top:10px">Die ausgefallenen Stunden liegen am Ende des Tages: Schulschluss ist jetzt ${fmt(plan.schoolEnd ?? plan.morningEnd)}. Der Nachmittag beginnt früher.</p>` : ''}</div>`;
 }

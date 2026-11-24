@@ -2,7 +2,7 @@
 // nur dieses Modul ersetzen muss. Siehe README "Benachrichtigungen auf iOS".
 import * as store from './store.js';
 import { nowMin, todayStr, nowTs } from '../lib/clock.js';
-import { fmt, hm } from '../lib/dates.js';
+import { fmt, hm, addDays } from '../lib/dates.js';
 import { planFor, statsFor, addWater, setAckHandler } from './actions.js';
 import { toast } from '../ui/fx.js';
 import { play } from '../lib/sound.js';
@@ -39,9 +39,13 @@ export function buildReminders(date) {
   const l = firstOf('learn');
   if (l) out.push({ id: 'learn', at: l.start, tag: 'learn', title: `Lernblock: ${l.title.replace(/^Lernen: /, '')}`, body: `${l.dur} Minuten. Anfangen reicht.`, hard: 'Lernblock läuft nicht. Fünf Minuten starten, mehr nicht. Jetzt.', cond: () => (D().learnSec || 0) < 600 });
   const sp = firstOf('sport');
-  if (sp) out.push({ id: 'sport', at: sp.start, tag: 'sport', title: `${sp.title} steht an`, body: `${sp.dur} Minuten.`, hard: 'Sport ist nicht passiert. Zieh die Schuhe an. Jetzt.', cond: () => !D().done?.sport });
+  if (sp) out.push({ id: 'sport', at: sp.start, tag: 'sport', title: `${sp.title} steht an`, body: `${sp.dur} Minuten.`, hard: 'Sport ist nicht passiert. Schuhe an. Jetzt.', cond: () => !D().done?.sport });
   const rd = firstOf('read');
   if (rd) out.push({ id: 'read', at: rd.start, tag: 'read', title: 'Lesen', body: `${rd.dur} Minuten, ein paar Seiten.`, hard: 'Das Buch wartet. Zehn Minuten, dann ist es erledigt.', cond: () => !D().done?.read && !(D().pages > 0) });
+  const hb = plan.blocks.find((b) => b.id === 'handball-hin');
+  if (hb) out.push({ id: 'handball', at: hb.start - 10, tag: 'sport', title: 'Handball: gleich losgehen', body: `Hinweg beginnt um ${fmt(hb.start)} (20 Minuten).`, hard: 'Du bist spät dran. Tasche, Schuhe, los.', cond: () => !D().skipped?.handball });
+  const hw = plan.blocks.find((b) => b.kind === 'hw' && b.status === 'pending');
+  if (hw) out.push({ id: 'hw', at: hw.start, tag: 'learn', title: 'Hausaufgabe steht an', body: `${hw.title.replace('Hausaufgabe: ', '')}, ${hw.dur} Minuten.`, hard: 'Die Hausaufgabe wartet. Fang an. Jetzt.', cond: () => !(D().hwChunks && Object.keys(D().hwChunks).length) });
   const eve = plan.eveStart;
   out.push({ id: 'streakwarn', at: Math.min(eve - 90, hm('20:00')), tag: 'learn', title: 'Dein Streak hängt', body: 'Du hast heute noch keine 5 Minuten gelernt. Das reicht schon.', hard: 'Nils. Der Tag ist bald vorbei. Fünf Minuten Lernen retten die Streak. Mach es jetzt.', cond: () => (D().learnSec || 0) < 300 });
   out.push({ id: 'eve-pre', at: eve - 15, tag: 'evening', title: 'In 15 Minuten: Abendcheck', body: 'Beende, was du angefangen hast. Handy gleich aus.', hard: 'Abendcheck steht gleich an. Rückblick, Gebet, Worte. Sei pünktlich.', cond: () => !D().evening?.done });
@@ -150,14 +154,21 @@ export async function enableServerPush() {
 }
 /** Legt die Erinnerungen der nächsten 24 Stunden in der Cloud ab, damit eine Edge Function sie senden kann. */
 export async function syncReminders() {
-  if (!cloudConfigured || !isLoggedIn() || !VAPID) return;
+  if (!cloudConfigured || !isLoggedIn() || !VAPID || permission() !== 'granted') return;
   const c = getClient();
   const { data } = await c.auth.getUser();
   const today = todayStr();
-  const rows = buildReminders(today).map((r) => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return { user_id: data.user.id, rid: `${today}|${r.id}`, fire_at: new Date(d.getTime() + r.at * 60000).toISOString(), title: r.title, body: r.body, hard_body: r.hard, tag: r.tag };
-  });
-  await c.from('reminders').upsert(rows, { onConflict: 'user_id,rid' });
+  const rows = [];
+  for (const date of [today, addDays(today, 1)]) {
+    for (const r of buildReminders(date)) {
+      if (date === today && !r.cond()) continue; // schon erledigt, kein Push mehr nötig
+      const d = new Date(`${date}T00:00:00`);
+      rows.push({ user_id: data.user.id, rid: `${date}|${r.id}`, fire_at: new Date(d.getTime() + r.at * 60000).toISOString(), title: r.title, body: r.body, hard_body: r.hard, tag: r.tag });
+    }
+  }
+  // Noch nicht gesendete, zukünftige Zeilen aktualisieren (gesendete bleiben unangetastet)
+  const { data: sent } = await c.from('reminders').select('rid').eq('sent', true).in('rid', rows.map((r) => r.rid));
+  const skip = new Set((sent || []).map((x) => x.rid));
+  const fresh = rows.filter((r) => !skip.has(r.rid));
+  if (fresh.length) await c.from('reminders').upsert(fresh, { onConflict: 'user_id,rid' });
 }

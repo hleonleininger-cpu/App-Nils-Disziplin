@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as store from './store.js';
 
 const URL = import.meta.env.VITE_SUPABASE_URL;
-const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const cloudConfigured = Boolean(URL && KEY);
 
 let client = null;
@@ -13,6 +13,25 @@ let status = { state: cloudConfigured ? 'offline' : 'local', last: null, error: 
 const listeners = new Set();
 let pushTimer = null;
 let busy = false;
+
+// Zuordnung: lokaler Schlüssel -> Tabelle und Schlüsselspalten (siehe supabase/migrations/0001_disziplin.sql)
+export const TABLES = [
+  { t: 'settings', cols: ['key'], match: (k) => k === 'settings' || k === 'timetable', to: (k) => ({ key: k }), from: (r) => r.key },
+  { t: 'day_log', cols: ['day'], match: (k) => k.startsWith('day:'), to: (k) => ({ day: k.slice(4) }), from: (r) => 'day:' + r.day },
+  { t: 'streak', cols: [], match: (k) => k === 'meta', to: () => ({}), from: () => 'meta' },
+  { t: 'books', cols: [], match: (k) => k === 'books', to: () => ({}), from: () => 'books' },
+  { t: 'topics', cols: ['key'], match: (k) => k === 'topics' || k === 'learn', to: (k) => ({ key: k }), from: (r) => r.key },
+  { t: 'packs', cols: ['id'], match: (k) => k.startsWith('pack:'), to: (k) => ({ id: k.slice(5) }), from: (r) => 'pack:' + r.id },
+  { t: 'excuses', cols: ['day'], match: (k) => k.startsWith('excuse:'), to: (k) => ({ day: k.slice(7) }), from: (r) => 'excuse:' + r.day },
+  { t: 'homework', cols: ['id'], match: (k) => k.startsWith('hw:'), to: (k) => ({ id: k.slice(3) }), from: (r) => 'hw:' + r.id },
+  { t: 'tasks', cols: ['id'], match: (k) => k.startsWith('task:'), to: (k) => ({ id: k.slice(5) }), from: (r) => 'task:' + r.id },
+];
+export function routeKey(key) {
+  const r = TABLES.find((x) => x.match(key));
+  // Unbekannte Schlüssel landen in "settings" (key-Spalte), damit nichts verloren geht
+  return r || { ...TABLES[0], to: (k) => ({ key: k }) };
+}
+const onConflict = (r) => ['user_id', ...r.cols].join(',');
 
 export const syncStatus = () => ({ ...status, user: session?.user?.email || null });
 export function onSyncStatus(fn) {
@@ -55,10 +74,12 @@ export async function signIn(email, password) {
   session = data.session;
   return data;
 }
-export async function signUp(email, password) {
+export async function signUp(email, password, inviteCode = '') {
   const { data, error } = await getClient().auth.signUp({ email, password });
   if (error) throw error;
   session = data.session;
+  // Grundlage für Einladungen: Code einlösen, wenn einer mitgegeben wurde. Noch nicht erzwungen.
+  if (session && inviteCode) await getClient().rpc('redeem_invite', { p_code: inviteCode }).then(() => {}, () => {});
   return data;
 }
 export async function sendCode(email) {
@@ -83,29 +104,38 @@ export async function syncNow() {
   busy = true;
   setStatus({ state: 'syncing', error: null });
   try {
-    // 1) holen
+    // 1) holen: je Tabelle alles, was neuer ist als der letzte Abruf
     const since = new Date(store.getLastPull() || 0).toISOString();
-    const { data: rows, error } = await c.from('records').select('key,data,updated_at').gt('updated_at', since).limit(5000);
-    if (error) throw error;
     let changed = false;
     let maxU = store.getLastPull();
-    for (const r of rows || []) {
-      const u = new Date(r.updated_at).getTime();
-      maxU = Math.max(maxU, u);
-      if (store.applyRemote(r.key, r.data?.v ?? null, u)) changed = true;
+    for (const tb of TABLES) {
+      const { data: rows, error } = await c.from(tb.t).select(['data', 'updated_at', ...tb.cols].join(',')).gt('updated_at', since).limit(5000);
+      if (error) throw error;
+      for (const r of rows || []) {
+        const u = new Date(r.updated_at).getTime();
+        maxU = Math.max(maxU, u);
+        if (store.applyRemote(tb.from(r), r.data?.v ?? null, u)) changed = true;
+      }
     }
-    // 2) senden
+    // 2) senden: lokale Änderungen, gruppiert je Tabelle
     const keys = store.dirtyKeys();
     if (keys.length) {
-      const payload = keys.map((k) => {
+      const byTable = new Map();
+      for (const k of keys) {
         const e = store.rawEntry(k);
-        return { user_id: session.user.id, key: k, data: { v: e?.v ?? null }, updated_at: new Date(e?.u || Date.now()).toISOString() };
-      });
-      for (let i = 0; i < payload.length; i += 200) {
-        const { error: e2 } = await c.from('records').upsert(payload.slice(i, i + 200), { onConflict: 'user_id,key' });
-        if (e2) throw e2;
+        const rt = routeKey(k);
+        const row = { user_id: session.user.id, ...rt.to(k), data: { v: e?.v ?? null }, updated_at: new Date(e?.u || Date.now()).toISOString() };
+        if (!byTable.has(rt)) byTable.set(rt, []);
+        byTable.get(rt).push({ k, row });
       }
-      payload.forEach((p) => store.markClean(p.key, new Date(p.updated_at).getTime()));
+      for (const [rt, items] of byTable) {
+        for (let i = 0; i < items.length; i += 200) {
+          const part = items.slice(i, i + 200);
+          const { error } = await c.from(rt.t).upsert(part.map((x) => x.row), { onConflict: onConflict(rt) });
+          if (error) throw error;
+          part.forEach((x) => store.markClean(x.k, new Date(x.row.updated_at).getTime()));
+        }
+      }
     }
     store.setLastPull(maxU || Date.now() - 1000);
     setStatus({ state: 'idle', last: Date.now() });

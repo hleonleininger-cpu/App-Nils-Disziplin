@@ -7,6 +7,7 @@ import { addDays, shortDate, WD_SHORT, mondayOf, isoWeek, weekType } from '../li
 import { esc } from '../lib/util.js';
 import { pageHead, bar } from './components.js';
 import { ACT, refresh } from './nav.js';
+import { plural } from './heute.js';
 
 let sel = null;
 
@@ -54,7 +55,7 @@ export default {
       v(waterDays >= n * 0.8 ? 'good' : waterDays >= n * 0.5 ? 'mid' : 'bad', `Wasser: Ziel an ${waterDays} von ${n} Tagen. ${waterDays < n * 0.5 ? 'Das ist schwach.' : ''}`);
       v(sportDays >= n * 0.9 ? 'good' : sportDays >= n * 0.6 ? 'mid' : 'bad', `Sport: ${sportDays} von ${n} Tagen. Selbstverteidigung: ${sdDays} von ${n}.`);
       v(evenings >= n * 0.8 ? 'good' : 'mid', `Abendcheck: ${evenings} von ${n} Tagen.`);
-      v('mid', `Freizeit genutzt: ${freeUsed} Minuten (Limit ${S.freeLimit} pro Tag). Gelesen: ${pages} Seiten.`);
+      v('mid', `Freizeit genommen: ${freeUsed} Minuten. Gelesen: ${pages} Seiten.`);
     }
     const best = [...past].sort((a, b) => b.learn - a.learn)[0];
     const ch = A.weekChallengeState(sel);
@@ -65,13 +66,13 @@ export default {
     <div class="row sp"><button class="btn sm" data-act="w-nav" data-d="-7">‹ zurück</button><button class="btn sm" data-act="w-nav" data-d="0">Diese Woche</button><button class="btn sm" data-act="w-nav" data-d="7">weiter ›</button></div>
     <div class="card"><b>Lernzeit pro Tag</b><div class="bars">${rows.map((r) => `<div class="b ${r.future ? 'open' : r.status === 'missed' ? 'miss' : r.status === 'excused' ? 'exc' : r.status === 'open' ? 'open' : ''}"><span>${Math.round(r.learn) || ''}</span><i style="height:${Math.max(4, (r.learn / maxL) * 90)}%"></i><span>${WD_SHORT[days.indexOf(r.d)]}</span></div>`).join('')}</div>
       <small>Rot = Tag verloren · Blau = Begründung angenommen · Streak zählt ab ${disc.STREAK_MIN} Min.</small></div>
-    ${S.mechanics.streak ? `<div class="card"><div class="row sp"><b>🔥 Streak-Verlauf (28 Tage)</b><small>jetzt ${A.streakNow()} · Rekord ${disc.bestStreak(store.allDays(), today, meta)}</small></div>${spark(series)}</div>` : ''}
-    ${S.mechanics.weekly ? `<div class="card"><div class="row sp"><b>🏆 Wochenherausforderung</b>${ch.claimed ? '<span class="chip" style="--c:#19c37d">Abgeholt</span>' : ''}</div><p style="margin:6px 0"><b>${ch.ch.title}</b>: ${ch.ch.desc}</p>${bar(ch.value / ch.ch.target, '#ffd54a')}<small>${ch.value} / ${ch.ch.target} ${ch.ch.unit}</small>${ch.done && !ch.claimed ? `<div class="btns"><button class="btn primary" data-act="w-claim" data-mon="${ch.mon}">+${disc.POINTS.weeklyChallenge} Punkte abholen</button></div>` : ''}</div>` : ''}
+    ${S.mechanics.streak ? `<div class="card"><div class="row sp"><b>Streak-Verlauf (28 Tage)</b><small>jetzt ${A.streakNow()} · Rekord ${disc.bestStreak(store.allDays(), today, meta)}</small></div>${spark(series)}</div>` : ''}
+    ${S.mechanics.weekly ? `<div class="card"><div class="row sp"><b>Wochenherausforderung</b>${ch.claimed ? '<span class="chip" style="--c:#19c37d">Abgeholt</span>' : ''}</div><p style="margin:6px 0"><b>${ch.ch.title}</b>: ${ch.ch.desc}</p>${bar(ch.value / ch.ch.target, '#ffd54a')}<small>${ch.value} / ${ch.ch.target} ${ch.ch.unit}</small>${ch.done && !ch.claimed ? `<div class="btns"><button class="btn primary" data-act="w-claim" data-mon="${ch.mon}">+${disc.POINTS.weeklyChallenge} Punkte abholen</button></div>` : ''}</div>` : ''}
     <div class="sec-title"><h2>Ehrliche Zahlen</h2></div>
     ${verdicts.join('') || '<div class="empty">Diese Woche hat noch nicht begonnen.</div>'}
     ${best && best.learn > 0 ? `<div class="verdict good">Was gut lief: ${WD_SHORT[days.indexOf(best.d)]} mit ${Math.round(best.learn)} Minuten Lernzeit${pts ? `, insgesamt +${pts} Punkte diese Woche` : ''}.</div>` : ''}
     <div class="card"><b>Motivation: was nutzt du wirklich?</b><p class="muted" style="margin:4px 0 8px">Jede Mechanik kannst du in den Einstellungen an- und ausschalten. Hier siehst du, womit du dich beschäftigst.</p>
-      ${MECHANICS.map((m) => `<div class="list-item"><div class="grow"><b>${m.name}</b><br><small>${S.mechanics[m.id] ? 'an' : 'aus'}</small></div><small>${usage['seen:' + m.id] || 0} Tage sichtbar · ${usage[m.id] || 0}× angetippt</small></div>`).join('')}
+      ${MECHANICS.map((m) => `<div class="list-item"><div class="grow"><b>${m.name}</b><br><small>${S.mechanics[m.id] ? 'an' : 'aus'}</small></div><small>${plural(usage['seen:' + m.id] || 0, 'Tag', 'Tage')} sichtbar · ${usage[m.id] || 0}× angetippt</small></div>`).join('')}
       <small>Dazu: Wahl nach der Schule: ${['learn', 'read', 'free'].map((k) => `${{ learn: 'Lernen', read: 'Lesen', free: 'Freizeit' }[k]} ${usage['choice:' + k] || 0}×`).join(', ')}</small></div>`;
   },
 };

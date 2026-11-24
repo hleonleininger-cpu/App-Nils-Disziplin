@@ -5,3 +5,4 @@ dist
 .vercel
 *.log
 e2e-shots
+dist-e2e

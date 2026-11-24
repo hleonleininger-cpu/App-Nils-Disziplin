@@ -1,17 +1,14 @@
 # Offene Fragen
 
-Echte Rückfragen, die ich in der Nacht nicht klären konnte. Für jede steht, was ich bis dahin angenommen habe.
+Echte Entscheidungen, die noch offen sind. Für jede steht, was bis dahin gilt.
 
-1. **Stundenplan: Widerspruch im Auftrag.** Im Text steht "Freistunde Mo 5./6. Stunde in Woche A (11:35–13:10)". In der bestätigten Tabelle hat Woche A am Montag aber Informatik in 5/6, und die Freistunde liegt in **Woche B**. Ich habe die Tabelle genommen (die ist laut Auftrag Tag für Tag bestätigt). Stimmt das?
-2. **Freitag: früher Schulschluss um 13:10?** Im Text heißt es "Di und Fr 13:10". In der Tabelle hat der Freitag in beiden Wochen 7./8. Stunde (Kunst bzw. Philosophie), also Schulschluss 15:20. Dienstag stimmt (7/8 frei). Ich habe die Tabelle genommen. Falls der Freitag früher endet, bitte im Stundenplan-Editor die 7/8 leeren.
-3. **Supabase:** Soll ich ein Projekt anlegen, oder legst du es an? Das Konto und eventuelle Kosten entscheidest du. Die App läuft bis dahin lokal.
-4. **Registrierung schließen:** Nach dem ersten Konto sollte "Allow new users to sign up" in Supabase aus. Machst du das, oder soll es später ein Einmal-Einladungslink sein?
-5. **Wiedereinstieg:** Drei Mini-Lektionen stellen die halbe Kette her. Ist "die Hälfte" richtig, oder lieber ein anderer Anteil, zum Beispiel zwei Drittel?
-6. **Begründungen:** Zwei akzeptierte pro Woche, jeweils mit 15 Minuten weniger Freizeit und einer Seite mehr lesen am Folgetag. Zu streng, zu lasch?
-7. **Sport und Selbstverteidigung:** Jeder Wochentag hat Sport, also ist Selbstverteidigung immer die 15-Minuten-Fassung. Gewollt? Oder soll sie an einzelnen Tagen 30 Minuten dauern?
-8. **Zukunftswissen:** Zählt bei dir auch Schule (Mathe, Facharbeit) dazu, oder nur Finanzen, Investieren, Programmieren, Menschen, Sherlock und Bücher? Aktuell: Schule zählt nicht.
-9. **Handball-Wege:** Soll vor und nach dem Handball Zeit für Hin- und Rückweg eingeplant werden? Aktuell nicht.
-10. **Bücher und Quellen:** Welche Bücher sollen rein, und von welchen Quellen sollen die Lerninhalte kommen? Die 11 Platzhalter-Pakete sind nicht quellengeprüft.
-11. **Push:** Reicht es, wenn Erinnerungen nur bei geöffneter App kommen, oder soll ich den Server-Push (Edge Function) fertig einrichten? Dafür brauche ich das Supabase-Projekt.
-12. **Name des Fokus-Kurzbefehls:** Aktuell "Fokus Lernen". Anders gewünscht?
-13. **Vercel-Deployment fehlt noch.** Mein Zugriff auf Vercel wurde mit 403 abgewiesen (Team-Scope nicht freigegeben). Es gibt deshalb noch keinen Link. Zwei Wege: (a) in Vercel dem Claude-Zugang Zugriff auf dein Team geben, dann deploye ich sofort; (b) selbst auf vercel.com *Add New > Project*, Repo `App-Nils-Disziplin`, Branch `claude/festive-edison-q7qml9` wählen, auf *Deploy* tippen (Einstellungen stehen in `vercel.json`). Es kostet nichts (Hobby).
+1. **Wiedereinstieg nach einem verpassten Tag.** Drei Mini-Lektionen am Folgetag stellen bisher die **Hälfte** der alten Kette wieder her (aufgerundet). Beispiel: Streak war 10, ein Tag fällt aus, die Kette steht bei 0. Nach drei Mini-Lektionen steht sie wieder bei 5, und der heutige Lerntag kommt obendrauf (6). Mit **zwei Drittel** wären es 7 (8 mit heute), mit **volle Kette** 10 (11). Vorschlag zum Entscheiden: Die Hälfte ist spürbar hart, aber fair. Zwei Drittel macht den Fehltag billiger. Bis du entschieden hast, gilt die Hälfte.
+2. **Ausgleich nach einer Begründung.** Du wolltest "15 Minuten Freizeit abziehen". Es gibt jetzt kein festes Freizeitkonto mehr, also ist die Abbuchung nicht wörtlich möglich. Umgesetzt: Am nächsten Tag steht ein Pflichtblock "Ausgleich für gestern" (15 Minuten) **vor** der Freizeit, dazu eine Seite mehr lesen. Er verbraucht dieselbe Zeit, die sonst Freizeit wäre. Passt das so?
+3. **Vercel-Zugang.** Mein Zugriff wurde mit 403 abgewiesen (Team-Scope `j-arvis`). Schritte dazu in der Zusammenfassung. Bis dahin kein Link.
+4. **Supabase-Zugang.** Das Projekt "Disziplin" ist in meiner Verbindung nicht sichtbar. Tabellen und Funktion legst du nach `scripts/setup-supabase.md` an. Alternativ gibst du mir Zugriff auf dieses Projekt, dann mache ich es.
+5. **Registrierung abschalten.** Wenn dein Konto existiert: Supabase > Authentication > Sign In / Providers > "Allow new users to sign up" aus. Sag mir Bescheid, wenn das Konto steht.
+6. **Seitenzahlen der Bücher.** "Die 1 %-Methode" und "Think and Grow Rich" haben noch keine Seitenzahl und keinen Stand. Trag beides unter Lernen > Bücher ein.
+7. **Gym um 19:00.** Gym ist 75 Minuten und startet frühestens 19:00. Beginnt es nach etwa 20:10, passt es nicht mehr vor den Abendcheck um 21:30 und wandert auf die nächsten Tage. Soll der Abendcheck an Gym-Tagen später liegen, oder die Gym-Zeit kürzer sein (z. B. 60 Minuten)?
+8. **Zukunftswissen.** Zählt aktuell: Schule, Finanzen & Wirtschaft, Investieren und Hausaufgaben. Lesen und Programmieren zählen nicht. Richtig so?
+9. **Inhalte.** Die 11 Pakete sind Platzhalter. Welche Quellen sollen die echten Pakete nutzen?
+10. **Fokus-Kurzbefehl.** Name aktuell "Fokus Lernen". Der Fokus der App heißt jetzt "Disziplin". Umbenennen in "Fokus Disziplin"?

@@ -1,0 +1,6 @@
+# Minimale Konfiguration für die Supabase-CLI (supabase link --project-ref hjlkaclimldsofvsevzd)
+project_id = "hjlkaclimldsofvsevzd"
+
+# Die Funktion prüft selbst ein geteiltes Geheimnis (x-cron-secret), deshalb kein JWT nötig.
+[functions.send-reminders]
+verify_jwt = false

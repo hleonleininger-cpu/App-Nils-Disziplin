@@ -2,7 +2,7 @@
 
 Persönliche Lern- und Alltags-App für Nils. Sie kennt den ganzen Tag (Stundenplan, feste Termine, flexible Aufgaben) und zeigt jederzeit genau eine Sache: **Das ist jetzt dran.** Motto: Disziplin schlägt Motivation.
 
-Version 1, über Nacht gebaut. **Noch nicht deployt** (Vercel-Zugriff wurde abgewiesen, siehe FRAGEN.md Nr. 13). Sie läuft, ist getestet (57 Unit-Tests, ein End-to-End-Lauf mit simulierten Tagen) und hat bekannte Lücken, die unten stehen.
+Version 1 mit Überarbeitung. Sie läuft und ist getestet (Unit-Tests, ein End-to-End-Lauf mit simulierten Tagen in 375 px Breite). Bekannte Lücken stehen unten. **Noch nicht deployt.**
 
 ## Start
 
@@ -11,7 +11,7 @@ npm install
 npm run dev        # Entwicklung, http://localhost:5173
 npm test           # Unit-Tests (Plan, Streak, Import, Lernen, Aktionen)
 npm run build      # Produktions-Build nach dist/
-npm run e2e        # spielt Tage im Browser durch, Screenshots in ./e2e-shots (vorher npm run build)
+npm run e2e        # baut ohne Cloud-Zugang und spielt Tage im Browser durch, Screenshots in ./e2e-shots
 ```
 
 Ohne weitere Einrichtung läuft die App im **Lokal-Modus**: alles liegt im Browser dieses Geräts, kein Login, keine Synchronisierung. Für Sync zwischen iPhone, MacBook und PC braucht es Supabase (nächster Abschnitt).
@@ -23,34 +23,28 @@ Beim ersten Start fragt die App: **Mit Testdaten starten** (14 Tage Verlauf mit 
 - **Test-Uhr:** Datum und Uhrzeit simulieren. So spielst du Morgen, Schulschluss, Abendcheck, den nächsten Tag oder einen verpassten Tag durch, ohne zu warten. Ein roter Hinweis unten links zeigt, dass die Test-Uhr aktiv ist.
 - **Lernzeit-Beschleuniger:** ×60 lässt eine Sekunde als Minute zählen, damit die 5-Minuten-Regel in ein paar Sekunden erfüllt ist. Danach wieder auf ×1.
 
-## Cloud-Sync mit Supabase (kostenloser Tarif)
+## Cloud-Sync mit Supabase
 
-Ich habe **kein** Supabase-Projekt angelegt, weil dafür ein Konto und je nach Organisation Kosten anfallen können. Der kostenlose Tarif reicht. Einrichtung, etwa 10 Minuten:
+Das Projekt "Disziplin" (`hjlkaclimldsofvsevzd`) existiert. Die App liest URL und Publishable Key aus `.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, Vorlage `.env.example`). Der Publishable Key ist öffentlich gedacht, die Daten schützt Row Level Security. Der Secret Key kommt **nie** in die App oder ins Repository.
 
-1. Auf supabase.com ein Projekt anlegen (Free).
-2. Im *SQL Editor* den Inhalt von `supabase/schema.sql` ausführen. Das legt die Tabelle `records` mit Row Level Security an: jeder Eintrag gehört nur dem eigenen Konto.
-3. *Authentication > Providers > Email* aktivieren. Für den Anfang *Confirm email* ausschalten, dann geht die Anmeldung sofort.
-4. In der App ein Konto mit E-Mail und Passwort anlegen.
-5. **Danach unter Authentication > Sign In / Providers "Allow new users to sign up" ausschalten.** Sonst könnte jeder, der die Adresse kennt, ein eigenes Konto anlegen (er sähe zwar nur seine eigenen Daten, aber der Platz ist begrenzt).
-6. Unter *Project Settings > API* die *Project URL* und den *anon public key* kopieren und als Umgebungsvariablen setzen:
-   - lokal: `.env.local` (Vorlage `.env.example`)
-   - Vercel: *Project Settings > Environment Variables*: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+**Ich habe keinen Zugriff auf dein Supabase-Projekt** (die Verbindung in meiner Sitzung sieht es nicht). Deshalb sind Tabellen und Funktion noch nicht angelegt. Das machst du einmalig nach `scripts/setup-supabase.md`: im SQL Editor `supabase/migrations/0001_disziplin.sql` ausführen. Die Migration habe ich lokal gegen eine echte Postgres-Engine geprüft (Test `tests/migration.test.js`: Tabellen, RLS auf allen Tabellen, ein zweiter Nutzer sieht nichts).
 
-Der anon-Key ist öffentlich gedacht. Geschützt werden die Daten durch Row Level Security, nicht durch Geheimhaltung des Keys. Der `service_role`-Key kommt **nie** in die App.
+Tabellen (alle mit RLS, jede Zeile gehört genau einem Nutzer): `settings`, `day_log` (Tageslog), `streak`, `books`, `topics`, `packs`, `excuses` (Begründungen), `homework`, `tasks`, `push_subscriptions`, `reminders`, `invites`.
 
-**Wie der Sync arbeitet:** Jeder Tag (`day:2026-11-23`), die Einstellungen, der Stundenplan, Lernstand, Bücher und importierte Pakete sind einzelne Einträge mit Zeitstempel. Beim Start, beim Zurückkehren in die App und alle 60 Sekunden werden neuere Einträge geholt, lokale Änderungen hochgeladen. Bei Konflikten gewinnt pro Eintrag die jüngere Änderung. Wer auf zwei Geräten gleichzeitig denselben Tag bearbeitet, kann einzelne Änderungen verlieren (siehe Lücken).
+**Sync:** Login mit E-Mail und Passwort (Code per E-Mail zusätzlich). Jeder Tag, die Einstellungen, der Stundenplan, Lernstand, Bücher, Hausaufgaben und Pakete sind einzelne Einträge mit Zeitstempel, die der jeweiligen Tabelle zugeordnet werden (`src/core/sync.js`). Beim Start, beim Zurückkehren in die App und alle 60 Sekunden werden neuere Einträge geholt und lokale Änderungen hochgeladen. Pro Eintrag gewinnt die jüngere Änderung. **Ohne Verbindung läuft alles lokal weiter** und wird später nachgeholt. "Ohne Anmeldung weitermachen" nutzt nur dieses Gerät.
 
-Anmeldung am iPhone: Passwort funktioniert in der Homescreen-App am zuverlässigsten. Der Link-Login per E-Mail öffnet Safari statt der Homescreen-App und meldet dort an, nicht in der App. Deshalb gibt es zusätzlich die Anmeldung mit 6-stelligem Code (im E-Mail-Template von Supabase muss dafür `{{ .Token }}` stehen).
+**Registrierung:** Bleibt vorerst offen. Die Grundlage für Einladungen ist da (Tabelle `invites`, Funktion `redeem_invite`, die App löst `?invite=CODE` beim Registrieren ein), aber nichts wird erzwungen. Sobald dein Konto existiert, schaltest du in Supabase "Allow new users to sign up" aus. Ich sage dir in der Zusammenfassung, wann.
+
+Anmeldung am iPhone: Passwort funktioniert in der Homescreen-App am zuverlässigsten. Ein Link-Login per E-Mail würde Safari statt der Homescreen-App öffnen.
 
 ## Deployment (Vercel, kostenloser Hobby-Tarif)
 
-Die App ist eine statische Vite-App, `vercel.json` ist vorbereitet.
+Die App ist eine statische Vite-App, `vercel.json` ist vorbereitet. Mein Zugriff auf Vercel wurde mit 403 abgewiesen, ein Deployment steht deshalb noch aus (Schritte in der Zusammenfassung und in `FRAGEN.md`).
 
-1. Repository bei Vercel importieren (*Add New > Project*). Build-Befehl `npm run build`, Ausgabe `dist` (steht schon in `vercel.json`).
-2. Umgebungsvariablen aus dem vorigen Abschnitt eintragen.
-3. Deploy. Die URL ist der Link für Nils.
-
-Mit `npx vercel` aus dem Projektordner geht es auch direkt von der Kommandozeile.
+1. Auf vercel.com *Add New > Project*, Repository `App-Nils-Disziplin` importieren.
+2. Branch: Die App liegt auf `claude/festive-edison-q7qml9`. Entweder unter *Settings > Git > Production Branch* diesen Branch eintragen oder den Branch nach `main` mergen.
+3. *Environment Variables* setzen: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (Werte wie in `.env`), später `VITE_VAPID_PUBLIC_KEY`.
+4. Deploy. Die Adresse ist der Link für das iPhone (HTTPS, nötig für Homescreen und Benachrichtigungen).
 
 ## Auf den iPhone-Homescreen
 
@@ -75,26 +69,18 @@ Auf Mac und PC zeigt der Button einen Hinweis auf Website-Blocker (Fokus-Modus d
 
 ## Benachrichtigungen auf iOS: was geht, was nicht
 
-| | Geht | Geht nicht |
-|---|---|---|
-| App offen oder im Vordergrund | Alle Erinnerungen (Wasser, Lernen, Sport, Lesen, Abendcheck) als Hinweis in der App, mit Ein-Tipp-Antwort und zweiter, härterer Nachricht nach 10 Minuten ohne Reaktion | |
-| Homescreen-App, geschlossen | Nur mit Server-Push (siehe unten) | Ohne Server kommt nichts. Das ist eine Grenze von iOS, nicht der App. |
-| Safari-Tab | | Web-Push geht auf iOS nur in der zum Homescreen hinzugefügten App (iOS 16.4 oder neuer) |
-| Zeitgesteuert lokal planen | | Das Notification-Triggers-API gibt es in Safari nicht |
+| Situation | Geht? |
+|---|---|
+| App offen oder im Vordergrund | Ja. Alle Erinnerungen (Wasser, Lernen, Hausaufgabe, Sport, Handball-Weg, Lesen, Abendcheck) als Hinweis in der App, mit Ein-Tipp-Antwort. Nach 10 Minuten ohne Reaktion kommt eine zweite, härtere Nachricht. |
+| Homescreen-App, geschlossen | Ja, **mit Server-Push** (Supabase Edge Function plus Zeitplan, siehe `scripts/setup-supabase.md`). Ohne den Server kommt im Hintergrund nichts. |
+| Nur in einem Safari-Tab | **Nein.** Web-Push gibt es auf dem iPhone nur in der zum Homescreen hinzugefügten App (iOS 16.4 oder neuer). |
+| Erlaubnis | Muss per Tipp in der App erfragt werden (*Mehr > Benachrichtigungen > Erlauben*). Wer ablehnt, muss es in den iOS-Einstellungen ändern. |
+| Aktionsknöpfe in der Systemmeldung (+250 ml) | **Nein**, iOS zeigt sie nicht. Tippen öffnet die App, dort steht der Ein-Tipp-Knopf. |
+| Zuverlässigkeit | iOS entscheidet über Zustellung und Zeitpunkt. Eine Zustellung auf die Minute ist nicht garantiert. |
 
-Der gesamte Code dafür liegt in `src/core/notify.js` und in `public/sw.js`. Eine spätere native App ersetzt nur dieses Modul.
+**Was ich eingerichtet habe:** Service Worker (`public/sw.js`: zeigt Push an, öffnet die App beim Tippen), Abo-Verwaltung und Zeitplan-Abgleich im Client (`src/core/notify.js`), Tabellen `push_subscriptions` und `reminders`, Edge Function `supabase/functions/send-reminders` (VAPID, zweite harte Nachricht, Aufräumen abgelaufener Abos), Zeitplan per `supabase/cron.sql`. **Was ich nicht konnte:** deployen und mit einem echten iPhone ausprobieren, weil ich keinen Zugriff auf dein Supabase-Projekt und kein iPhone habe. Die Funktion ist deshalb ungetestet. Der Client baut jeden Tag die Erinnerungen für heute und morgen und legt sie in `reminders` ab, solange Push aktiv ist.
 
-**Push bei geschlossener App (Grundgerüst, ungetestet):**
-1. `npx web-push generate-vapid-keys`. Public Key als `VITE_VAPID_PUBLIC_KEY` setzen.
-2. In `supabase/functions/send-reminders` liegt eine Edge Function. Deployen (`supabase functions deploy send-reminders`) und Secrets setzen: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
-3. Jede Minute aufrufen, z. B. mit `pg_cron` und `pg_net`:
-   ```sql
-   select cron.schedule('send-reminders', '* * * * *', $$
-     select net.http_post('https://<projekt>.supabase.co/functions/v1/send-reminders',
-       headers := '{"Authorization": "Bearer <service_role_key>"}'::jsonb)
-   $$);
-   ```
-4. In der App *Mehr > Benachrichtigungen erlauben*. Die App legt die Erinnerungen des Tages in der Tabelle `reminders` ab (`syncReminders` in `notify.js`). Diese Verdrahtung ist noch nicht an einen Button gehängt, siehe Lücken.
+Der gesamte Client-Code liegt in `src/core/notify.js` und `public/sw.js`. Eine spätere native App ersetzt nur dieses Modul.
 
 ## Struktur
 
@@ -139,44 +125,50 @@ Menschen lesen und Gesprächsführung sind ausschließlich als ehrliche Kommunik
 
 ## Regeln der App (so habe ich sie umgesetzt)
 
-- **Streak:** Ein Tag zählt ab 5 Minuten echter Lernzeit (gemessen, solange die Lernsitzung sichtbar ist). Der Tagesring zeigt sechs Ziele: Lernen, Sport, Wasser, Selbstverteidigung, Lesen, 15 Minuten Zukunftswissen.
-- **Verpasster Tag:** Keine 5 Minuten und keine akzeptierte Begründung bis Mitternacht heißt: Tag verloren, Streak reißt. Beim nächsten Öffnen kommt die Meldung ("Du Versager", nur dafür, mit Vornamen, abschaltbar unter *Harter Ton*) und sofort der nächste Schritt.
-- **Wiedereinstieg:** Drei Mini-Lektionen am Tag nach dem Ausfall stellen die **Hälfte** der alten Kette wieder her (aufgerundet).
-- **Begründung:** Am Abendcheck, wenn weniger als 5 Minuten gelernt wurden. Angenommen wird sie, wenn eine Kategorie gewählt ist, mindestens zwei Sätze (20 Zeichen, vier Wörter) dastehen, kein "kein Bock/vergessen/keine Zeit" drinsteht und in den letzten 7 Tagen weniger als 2 Begründungen akzeptiert wurden (einstellbar). Ausgleich am nächsten Tag: 15 Minuten weniger Freizeit, eine Seite mehr lesen. Die Prüfung ist eine Heuristik, die App kann die Wahrheit nicht prüfen.
-- **Freizeit:** 60 Minuten pro Tag (einstellbar). Wird beim Beenden mit der echten Zeit verrechnet. Ist das Limit verbraucht, sperrt die App die Option und sagt es deutlich.
-- **Nachholen:** Was bis zum Tagesende nicht mehr passt oder ausgelassen wurde (Lernen, Lesen, Selbstverteidigung, Sport), wandert auf die nächsten Tage (maximal zwei Blöcke am Tag, nach 6 Tagen verfällt es).
-- **Themenwahl:** Ein Thema bleibt mindestens 3 und höchstens 10 Tage am Stück, solange noch Lücken da sind. Sitzt die Grundlage (Wissensstand ab 70 %, mindestens einmal "Erklär es einem Freund" bestanden, mindestens zwei Sitzungen), wechselt die App zum am längsten nicht gelernten Thema. Bei Wiederkehr beginnt jede Sitzung mit einem Wissenscheck.
-- **Wochentyp A/B:** Fortlaufend abwechselnd ab KW 47 = A (KW 48 = B). Das entspricht ungerade = A, gerade = B, läuft aber auch über den Jahreswechsel mit KW 53 sauber weiter. Unter *Mehr* umstellbar.
+- **Fokus:** Aufgaben zuerst. Freizeit gibt es erst nach den Aufgaben, über einen Knopf.
+- **Freizeit:** Kein festes Limit mehr. Der Knopf **15 Minuten Freizeit** (Heute, auch in der Bock-Frage) fügt einen 15-Minuten-Block ganz vorn ein und schiebt alles Folgende nach hinten. Die App rechnet vorher durch: Würde dadurch eine Aufgabe nicht mehr vor den Abendcheck passen, lehnt sie ab und nennt die Aufgabe. So oft, wie der Tag es hergibt.
+- **Streak:** Ein Tag zählt ab 5 Minuten Lernzeit (Lektionen, Hausaufgaben). Tagesring mit sechs Zielen: Lernen, Sport, Wasser, Selbstverteidigung, Lesen, 15 Minuten Zukunftswissen.
+- **Zukunftswissen:** Lernzeit in Schule und Finanzen (Finanzen & Wirtschaft, Investieren, Schule) und Hausaufgaben. Lesen zählt nicht mehr dazu.
+- **Verpasster Tag:** Keine 5 Minuten und keine akzeptierte Begründung bis Mitternacht: Tag verloren, Streak reißt. Beim nächsten Öffnen kommt die Meldung ("Du Versager", nur dafür, mit Vornamen, abschaltbar unter *Harter Ton*) und sofort der nächste Schritt.
+- **Wiedereinstieg:** Drei Mini-Lektionen am Tag nach dem Ausfall stellen einen Teil der Kette wieder her. Wie viel, ist noch offen (siehe `FRAGEN.md`, aktuell die Hälfte aufgerundet).
+- **Begründung:** Eine akzeptierte pro Kalenderwoche. Sie braucht eine Kategorie, mindestens zwei Sätze und darf nicht "kein Bock/vergessen/keine Zeit" enthalten. Ausgleich am nächsten Tag: ein Block "Ausgleich für gestern" (15 Minuten) kommt vor die Freizeit, dazu eine Seite mehr lesen. Das ersetzt "15 Minuten weniger Freizeit", weil es kein festes Freizeitkonto mehr gibt (siehe `FRAGEN.md`).
+- **Selbstverteidigung:** Jeden Tag 15 Minuten (3 Aufwärmen, 7 Schattenboxen, 5 Seilspringen), auch an Gym-Tagen. Sie wird vor Sport und Lesen eingeplant und fällt nicht aus dem Plan. Die Einstellung heißt *Selbstverteidigung pro Tag* (15, 20 oder 30 Minuten).
+- **Gym:** Abends, frühestens 19:00, immer 75 Minuten (einstellbar), ungekürzt. Passt es nicht mehr vor den Abendcheck, wird es nicht verkürzt, sondern wandert auf die nächsten Tage. Die Beschreibung richtet sich nach der Uhrzeit ("Training am Abend"). **Joggen** ist flexibel, frühestens 16:00. In einer Ausfall-Lücke wird nur Joggen vorgeschlagen, nie Gym.
+- **Handball:** Nur Montag (18:30 bis 20:15) und Freitag (18:00 bis 20:00). 20 Minuten Hinweg und 20 Minuten Rückweg sind als feste Blöcke eingeplant. In den Einstellungen ist Handball nur für Mo und Fr wählbar.
+- **Hausaufgaben:** Unter *Hausaufgaben* eintragen (Fach, Aufgabe, Frist, Aufwand 30 Min, 1 Std oder 2 Std). Die App plant sie nach Frist in Stücken von höchstens 60 Minuten vor dem Lernen ein. Die Zeit zählt als Lernzeit und als Zukunftswissen.
+- **Bücher:** "Die 1 %-Methode" und "Think and Grow Rich" sind angelegt (Seitenzahlen kannst du eintragen). Weitere Bücher fügst du unter *Lernen > Bücher* hinzu.
+- **Nachholen:** Was bis zum Tagesende nicht mehr passt oder ausgelassen wurde (Lernen, Lesen, Selbstverteidigung, Sport), wandert auf die nächsten Tage (höchstens zwei Blöcke am Tag, nach 6 Tagen verfällt es).
+- **Themenwahl:** Ein Thema bleibt mindestens 3 und höchstens 10 Tage dran, solange Lücken bleiben. Sitzt die Grundlage (Wissensstand ab 70 %, "Erklär es einem Freund" bestanden, mindestens zwei Sitzungen), wechselt die App zum am längsten nicht gelernten Thema. Bei Wiederkehr beginnt jede Sitzung mit einem Wissenscheck.
+- **Wochentyp A/B:** Fortlaufend abwechselnd ab KW 47 = A (KW 48 = B), auch über den Jahreswechsel. Unter *Mehr* umstellbar. Der Stundenplan wurde gegen deine Tabelle geprüft: Montag A hat Informatik in 5/6, Montag B ist 5/6 frei. Freitag hat in Woche A Kunst und in Woche B Philosophie in 7/8, also nie früher Schluss.
 
-### Annahmen, die ich getroffen habe
+### Annahmen
 
-- Alle sieben Wochentage haben Sport (Mo/Fr Handball, Di/Do/So Gym, Mi/Sa Joggen). Deshalb sind es bei Selbstverteidigung immer die gekürzten 15 Minuten. Schalter für immer 30 unter *Mehr*.
-- Gym dauert 75 Minuten, Joggen 45 (einstellbar). Sport frühestens 16:00.
 - Lernziel 45 Minuten Mo bis Fr, 60 am Wochenende. Ein Lernblock in einer Freistunde zählt dazu.
-- Zukunftswissen = Lernzeit in allen Themen außer Schule, plus Lesezeit.
-- Nach der Schule kommt 30 Minuten "Essen & runterkommen", dann die Frage "Worauf hast du Bock?". Am Wochenende kommt die Frage 30 Minuten nach dem Aufstehen.
-- Wer 2 Stunden nach der Aufstehzeit nicht "Ich bin wach" getippt hat, gilt als aufgestanden (sonst hinge der Tag fest). Verschlafen geht jederzeit über den Knopf.
-- Schulstunden, die vor einer verschlafenen Aufstehzeit liegen, werden als verschlafen markiert.
+- Nach der Schule kommen 30 Minuten "Essen & runterkommen", dann die Frage "Was jetzt?". Am Wochenende 30 Minuten nach dem Aufstehen.
+- Wer 2 Stunden nach der Aufstehzeit nicht "Ich bin wach" getippt hat, gilt als aufgestanden. Verschlafen geht jederzeit über den Knopf; Schulstunden vor der angegebenen Aufstehzeit werden als verschlafen markiert.
 - Der Handball-Termin zählt als Sport, sobald er vorbei ist, außer Nils markiert ihn als ausgefallen.
-- Stundenplan: Ausfälle aus dem Schulplan werden ignoriert, alles zählt als regulärer Unterricht. Ausfälle trägt Nils selbst ein.
+
+## Design
+
+Ruhige dunkle Fläche, ein Akzent (Orange), starke Typografie, keine Emojis (eigene Linien-Symbole in `src/ui/icons.js`), kein Maskottchen. Die nächste Aufgabe ist die größte Karte auf der Startseite. Titel der Stufen: Stufe I, Konsequent, Verlässlich, Hartnäckig, Souverän, Eisern, Meister, Elite, Unbeugsam, Legende. Getestet in 375 px Breite (iPhone).
 
 ## Bekannte Lücken
 
-- **Push bei geschlossener App** ist nur als Grundgerüst vorhanden (Schema, Edge Function, Client-Code), nicht eingerichtet, nicht getestet und nicht an einen Knopf in der Oberfläche gehängt. Ohne das gibt es Erinnerungen nur, solange die App offen oder kurz im Hintergrund ist.
-- **Cloud-Sync ist nicht gegen echte Supabase-Instanz getestet**, weil ich kein Projekt angelegt habe. Die Logik ist geschrieben und der Build läuft, aber der erste echte Login ist der Test. Fehler stehen dann unter *Mehr > Cloud-Sync*.
-- **Gleichzeitige Bearbeitung** auf zwei Geräten: pro Eintrag gewinnt die jüngere Änderung. Zwei Geräte, die gleichzeitig Wasser eintragen, überschreiben sich.
+- **Supabase ist noch nicht eingerichtet** (Tabellen, Push-Funktion, Zeitplan). Das kann ich ohne Zugriff auf dein Projekt nicht. Der Sync ist deshalb nicht gegen die echte Instanz getestet, die Migration nur lokal gegen Postgres. Erster echter Login ist der Test; Fehler stehen unter *Mehr > Cloud-Sync*.
+- **Push bei geschlossener App** ist geschrieben, aber nicht deployt und nicht auf einem iPhone ausprobiert.
+- **Kein Deployment**, Vercel gab 403.
+- **Gleichzeitige Bearbeitung** auf zwei Geräten: pro Eintrag gewinnt die jüngere Änderung. Wer auf beiden gleichzeitig Wasser einträgt, überschreibt sich.
 - **Echte App-Sperre** gibt es nicht (nur der Fokus-Kurzbefehl). Dafür braucht es die native App.
-- **Mündliche Abfrage** nutzt die Spracherkennung des Browsers. In der iPhone-Homescreen-App ist sie unzuverlässig oder fehlt. Fallback: die Diktierfunktion der Tastatur.
-- **Fokus-Kurzbefehl, Homescreen-Installation und Spracheingabe** habe ich nicht auf einem echten iPhone probiert. Getestet wurde mit Chromium in Handy-Größe.
-- **Inhalte** sind Platzhalter, nicht quellengeprüft. Es gibt keine Bilder, Audio oder Videos.
-- **Texte des Abendcheck** (Rückblick, Gebet, eigene Worte) bleiben lokal und in der Cloud als Klartext in der Datenbank deines Kontos. Es gibt keine Ende-zu-Ende-Verschlüsselung.
-- **Zeitzone** ist die des Geräts. Reisen in andere Zeitzonen sind nicht bedacht.
-- **Design:** Das ist ein erster Wurf. Farben, Maskottchen und Animationen sind Vorschläge für Nils' Feedback.
-- Die Bonuspunkte der Wochenherausforderung muss Nils in der Woche-Ansicht per Knopf abholen.
-- Systemmeldungen haben keine Aktionsknöpfe (+250 ml). Die gibt es nur in der App selbst.
+- **Mündliche Abfrage** nutzt die Spracherkennung des Browsers. In der Homescreen-App ist sie unzuverlässig. Fallback: Diktierfunktion der Tastatur.
+- **Fokus-Kurzbefehl, Homescreen-Installation und Spracheingabe** habe ich nicht auf einem echten iPhone probiert.
+- **Inhalte** sind Platzhalter, nicht quellengeprüft.
+- **Abendcheck-Texte** liegen im Klartext in der Datenbank deines Kontos, ohne Ende-zu-Ende-Verschlüsselung.
+- **Zeitzone** ist die des Geräts.
+- Die Bonuspunkte der Wochenherausforderung holt Nils in der Woche-Ansicht per Knopf ab.
+- **Übergänge:** Ich habe das Aufblitzen alten Inhalts beim Tab-Wechsel auf einfache Einblendung umgestellt und Schreibzugriffe beim Zeichnen entfernt, die zu einem zweiten Zeichnen führten. Ein Browser-Test sieht kein Flackern, auf deinem Gerät bitte nochmal prüfen.
 
 ## Daten und Sicherheit
 
-- Keine Passwörter oder Schlüssel im Code. Zugang nur über Umgebungsvariablen (`.env.local` ist in `.gitignore`).
+- Keine Passwörter oder Schlüssel im Code. Zugang nur über Umgebungsvariablen (`.env` ist in `.gitignore`).
 - Alle Cloud-Daten hängen an `auth.uid()` (Row Level Security). Ohne Login sieht niemand etwas.
 - *Mehr > Sicherung* exportiert alles als JSON, *Sicherung laden* spielt es zurück.

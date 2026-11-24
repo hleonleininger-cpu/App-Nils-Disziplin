@@ -60,7 +60,7 @@ export function nowFor(date) {
 export function planFor(date, opts = {}) {
   const S = store.getSettings();
   const TT = store.getTimetable();
-  const D = store.getDay(date);
+  const D = opts.D || store.getDay(date);
   const meta = store.getMeta();
   const today = todayStr();
   const now = 'now' in opts ? opts.now : nowFor(date);
@@ -70,6 +70,7 @@ export function planFor(date, opts = {}) {
     comp: meta.comps?.[date] || null,
     topic: topicFor(date),
     book: currentBook(),
+    homework: store.allHomework(),
   });
 }
 export function statsFor(date, opts = {}) {
@@ -77,7 +78,7 @@ export function statsFor(date, opts = {}) {
   const meta = store.getMeta();
   const D = store.getDay(date);
   const today = todayStr();
-  return disc.dayStats({ date, S, TT: store.getTimetable(), D, comp: meta.comps?.[date] || null, now: 'now' in opts ? opts.now : nowFor(date), carry: date >= today ? meta.carry : [] });
+  return disc.dayStats({ date, S, TT: store.getTimetable(), D, comp: meta.comps?.[date] || null, now: 'now' in opts ? opts.now : nowFor(date), carry: date >= today ? meta.carry : [], homework: store.allHomework(), topic: topicFor(date) });
 }
 export function streakNow() {
   const today = todayStr();
@@ -110,7 +111,6 @@ function maybeSurprise(date, id) {
   if (r > 0.28) return null;
   const s = SURPRISES[Math.floor(rng(`${date}|${id}|t`)() * SURPRISES.length)];
   if (s.type === 'points') award(date, s.points, 'Überraschung');
-  if (s.type === 'free') store.updateDay(date, (d) => (d.freeBonus = (d.freeBonus || 0) + s.free));
   trackUsage('surprise');
   return s;
 }
@@ -163,7 +163,7 @@ export function completeLunch(date = todayStr()) {
   });
 }
 
-const POINTS_BY_KIND = { sport: disc.POINTS.sport, sd: disc.POINTS.sd, read: disc.POINTS.read, project: 15, free: 0, learn: 0 };
+const POINTS_BY_KIND = { sport: disc.POINTS.sport, sd: disc.POINTS.sd, read: disc.POINTS.read, project: 15, free: 0, learn: 0, comp: 10 };
 
 /** Block abhaken. info: { minutes, pages } */
 export function finishBlock(date, block, info = {}) {
@@ -182,10 +182,25 @@ export function finishBlock(date, block, info = {}) {
       d.freeLog.push({ start: startedAt ?? now - minutes, end: now, min: minutes });
     }
     if (block.kind === 'read' && info.pages) d.pages = (d.pages || 0) + info.pages;
+    if (block.kind === 'hw') {
+      d.hwChunks = d.hwChunks || {};
+      d.hwChunks[block.hwId] = (d.hwChunks[block.hwId] || 0) + 1;
+    }
   });
+  if (block.kind === 'hw') {
+    // Hausaufgabe: Restzeit abziehen, Zeit zählt als Lernzeit (Streak) und als Zukunftswissen (Schule)
+    const h = store.get('hw:' + block.hwId);
+    if (h) {
+      h.remaining = Math.max(0, (h.remaining || 0) - minutes);
+      if (h.remaining <= 0) h.done = true;
+      store.set('hw:' + block.hwId, h);
+    }
+    addLearnSeconds(date, minutes * 60, { silent: false, future: true });
+  }
   if (block.carryId) store.updateMeta((m) => (m.carry = m.carry.filter((c) => c.id !== block.carryId)));
   if (block.kind === 'read' && info.pages) addPagesToBook(info.pages);
   let pts = POINTS_BY_KIND[block.kind] ?? disc.POINTS.task;
+  if (block.kind === 'hw') pts = disc.POINTS.task + Math.floor(minutes / 30) * 10;
   if (block.kind === 'read') pts += Math.min(20, info.pages || 0);
   if (block.kind === 'learn' && !info.fromSession) pts = disc.POINTS.learnBase + Math.floor(minutes / 15) * disc.POINTS.learnPer15;
   if (pts) award(date, pts, block.title);
@@ -209,9 +224,26 @@ function checkAllGoals(date) {
   return 0;
 }
 
-export function finishFree(date, minutes) {
-  const id = planFor(date).blocks.find((b) => b.kind === 'free' && (b.status === 'running' || b.status === 'pending'))?.id || `free-${(store.getDay(date).freeLog || []).length + 1}`;
-  return finishBlock(date, { id, kind: 'free', title: 'Freizeit', dur: minutes }, { minutes });
+/**
+ * "15 Minuten Freizeit": geht nur, solange danach alle Aufgaben des Tages noch in den Plan passen.
+ * Jeder Druck schiebt alles Folgende um 15 Minuten nach hinten.
+ */
+export function requestFree(date = todayStr()) {
+  const D = store.getDay(date);
+  const before = planFor(date);
+  const had = new Set(before.overflow.map((o) => o.id));
+  const D2 = { ...D, freeSlots: (D.freeSlots || 0) + 1 };
+  const after = planFor(date, { D: D2 });
+  const newId = `free-${D2.freeSlots}`;
+  const placed = after.blocks.find((b) => b.id === newId && b.dur > 0);
+  const dropped = after.overflow.filter((o) => !had.has(o.id));
+  if (!placed || dropped.length) {
+    const names = dropped.map((o) => o.title).join(', ');
+    return { ok: false, msg: placed ? `Nein. Mit weiteren 15 Minuten Freizeit würde heute nicht mehr in den Plan passen: ${names}. Erst die Aufgaben, dann Freizeit.` : 'Nein. Für heute ist keine Zeit mehr übrig. Der Abendcheck steht an.' };
+  }
+  store.updateDay(date, (d) => (d.freeSlots = D2.freeSlots));
+  trackUsage('choice:free');
+  return { ok: true, pushed: after.blocks.filter((b) => !b.fixed && b.status === 'pending' && b.id !== newId && b.start >= placed.end - 1).length };
 }
 
 export function chooseBock(date, kind, id = null) {
@@ -389,7 +421,38 @@ export function forceTopic(date, id) {
   });
 }
 
+// ---------- Hausaufgaben ----------
+export function addHomework({ subject, title, due, effort }) {
+  const id = uid();
+  const min = Number(effort) || 60;
+  store.set('hw:' + id, { id, subject, title: title || 'Hausaufgabe', due: due || '', effort: min, remaining: min, done: false, created: todayStr() });
+  return id;
+}
+export function removeHomework(id) {
+  store.remove('hw:' + id);
+}
+
 // ---------- Bücher ----------
+export const DEFAULT_BOOKS = [{ title: 'Die 1 %-Methode', author: 'James Clear', pages: 0 }, { title: 'Think and Grow Rich', author: 'Napoleon Hill', pages: 0 }];
+/** Legt die beiden aktuellen Bücher an, wenn noch kein Buch existiert. Seitenzahlen kann Nils später eintragen. */
+export function ensureDefaultBooks() {
+  const books = store.getBooks();
+  let changed = false;
+  for (const d of DEFAULT_BOOKS) {
+    if (!books.find((b) => b.title === d.title)) {
+      books.push({ id: uid(), title: d.title, author: d.author, pages: d.pages, page: 0, notes: [], quotes: [], finished: false, reading: true, added: todayStr() });
+      changed = true;
+    }
+  }
+  // Testbücher aus den Beispieldaten stehen nicht mehr als "aktuell"
+  books.forEach((b) => {
+    if (b.author === 'Testdaten' && b.reading !== false) {
+      b.reading = false;
+      changed = true;
+    }
+  });
+  if (changed) store.setBooks(books);
+}
 export function addBook(b) {
   const books = store.getBooks();
   books.push({ id: uid(), title: b.title, author: b.author || '', pages: Number(b.pages) || 0, page: 0, notes: [], quotes: [], finished: false, reading: books.every((x) => x.finished || x.reading === false), added: todayStr() });
@@ -417,11 +480,12 @@ function addPagesToBook(n) {
 export function submitExcuse(date, { cat, text }) {
   const days = store.allDays();
   const S = store.getSettings();
-  const recent = disc.acceptedExcusesLast7(days, date);
+  const recent = disc.acceptedExcusesInWeek(days, date);
   const v = disc.validateExcuse({ cat, text }, recent, S.maxExcuses);
   store.updateDay(date, (d) => {
     d.excuse = { cat, text, accepted: v.ok, msg: v.msg || '', ts: nowTs() };
   });
+  store.set('excuse:' + date, { cat, text, accepted: v.ok, ts: nowTs() });
   if (v.ok) {
     const next = addDays(date, 1);
     store.updateMeta((m) => {
@@ -567,11 +631,11 @@ export function loadDemoData() {
   store.updateMeta((m) => {
     m.points = 640;
   });
-  addBook({ title: 'Beispielbuch: Wie man Freunde gewinnt', author: 'Testdaten', pages: 320 });
-  addBook({ title: 'Beispielbuch: Der kluge Geldanleger', author: 'Testdaten', pages: 480 });
+  ensureDefaultBooks();
   updateBook(store.getBooks()[0].id, (b) => {
+    b.pages = 288;
     b.page = 87;
-    b.quotes.push({ text: 'Interessiere dich ehrlich für andere Menschen.', page: 45 });
+    b.quotes.push({ text: 'Du steigst nicht auf das Niveau deiner Ziele, du fällst auf das Niveau deiner Systeme.', page: 27 });
   });
   store.updateLearn((l) => {
     l.topics.finanzen = { ...learning.newProgress(), k: 62, sessions: 3, runDays: 3, daysStudied: 3, lastDate: addDays(today, -3), firstDate: addDays(today, -9), seen: ['finanzen-zinseszins'], gaps: ['finanzen-zinseszins|q|0'], lastRunDate: addDays(today, -3) };
@@ -583,6 +647,7 @@ export function loadDemoData() {
 
 export function startFresh() {
   store.resetAll({ keepSettings: true });
+  ensureDefaultBooks();
   store.updateMeta((m) => {
     m.onboarded = true;
     m.startDate = todayStr();

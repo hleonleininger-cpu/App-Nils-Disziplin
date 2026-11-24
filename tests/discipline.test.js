@@ -47,10 +47,10 @@ describe('Begründung', () => {
     expect(validateExcuse({ cat: 'sonst', text: 'Ich hatte einfach keinen Bock heute auf irgendwas.' }, 0).ok).toBe(false);
     expect(validateExcuse({ cat: '', text: 'Ich war den ganzen Tag im Krankenhaus bei Oma.' }, 0).ok).toBe(false);
   });
-  it('nimmt plausible an, aber nicht beliebig oft', () => {
+  it('nimmt plausible an, aber nur eine pro Woche', () => {
     const t = 'Ich hatte Fieber und lag den ganzen Tag im Bett.';
     expect(validateExcuse({ cat: 'krank', text: t }, 0).ok).toBe(true);
-    expect(validateExcuse({ cat: 'krank', text: t }, 2).ok).toBe(false);
+    expect(validateExcuse({ cat: 'krank', text: t }, 1).ok).toBe(false);
   });
 });
 
@@ -60,7 +60,7 @@ describe('Level', () => {
     expect(levelFor(99)).toBe(1);
     expect(levelFor(100)).toBe(2);
     expect(levelFor(300)).toBe(3);
-    expect(titleFor(1)).toBe('Rekrut');
-    expect(titleFor(5)).toBe('Lehrling');
+    expect(titleFor(1)).toBe('Stufe I');
+    expect(titleFor(5)).toBe('Verlässlich');
   });
 });

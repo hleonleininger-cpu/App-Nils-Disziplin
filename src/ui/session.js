@@ -5,7 +5,7 @@ import { todayStr } from '../lib/clock.js';
 import { esc } from '../lib/util.js';
 import { ACT, go, hashParams } from './nav.js';
 import { runItems, attachMic } from './itemrunner.js';
-import { mascot } from './mascot.js';
+import { icon } from './icons.js';
 import { bar } from './components.js';
 import { toast } from './fx.js';
 
@@ -17,7 +17,7 @@ function flush() {
   const sec = S.pending;
   S.pending = 0;
   S.total += sec;
-  A.addLearnSeconds(S.today, sec, { silent: true, future: !S.topic?.school });
+  A.addLearnSeconds(S.today, sec, { silent: true, future: Boolean(S.topic?.future) });
 }
 
 export default {
@@ -59,7 +59,7 @@ export default {
 
 function header() {
   const n = S.built.steps.length;
-  return `<div class="row sp"><a class="back" href="#/heute" style="font-size:28px">‹</a><div class="grow"><small>${S.topic.emoji} ${esc(S.topic.name)}${S.mini ? ' · Mini-Lektion' : ''} · ${S.built.fod.name}</small></div><b id="sess-time" class="chip">00:00</b></div>
+  return `<div class="row sp"><a class="back" href="#/heute" style="font-size:28px">‹</a><div class="grow"><small>${esc(S.topic.name)}${S.mini ? ' · Mini-Lektion' : ''} · ${S.built.fod.name}</small></div><b id="sess-time" class="chip">00:00</b></div>
   <div class="prog">${Array.from({ length: n }, (_, k) => `<i class="${k < S.i ? 'on' : k === S.i ? 'cur' : ''}"></i>`).join('')}</div>`;
 }
 
@@ -120,7 +120,7 @@ function show() {
     const t = step.teach;
     body.innerHTML = `${title}<p style="font-weight:700;margin:8px 0">${esc(t.prompt)}</p><div class="row sp"><span class="chip" id="cd">3:00</span><small>Schreib oder sprich es frei.</small></div>
       <textarea id="tb" style="min-height:150px" placeholder="So würde ich es einem Freund erklären ..."></textarea>
-      <div class="btns"><button class="btn mic" id="mic">🎤 Sprechen</button><button class="btn primary" id="fin">Fertig erklärt</button></div><div id="fb"></div>`;
+      <div class="btns"><button class="btn mic" id="mic">${icon('mic', 16)} Sprechen</button><button class="btn primary" id="fin">Fertig erklärt</button></div><div id="fb"></div>`;
     attachMic(body.querySelector('#mic'), body.querySelector('#tb'));
     let left = 180;
     const cd = setInterval(() => {
@@ -180,9 +180,9 @@ function finish() {
   const pct = Math.round(res.score * 100);
   const rec = res.recovery;
   const min = Math.max(1, Math.round(S.total / 60));
-  root.innerHTML = `<div class="big-msg">${mascot(pct >= 60 ? 'fire' : 'happy', 90, 'jump')}<h2>${pct >= 80 ? 'Stark.' : pct >= 50 ? 'Solide.' : 'Lücken gefunden.'}</h2>
+  root.innerHTML = `<div class="big-msg"><div class="big-ic">${icon('check', 30)}</div><h2>${pct >= 80 ? 'Stark.' : pct >= 50 ? 'Solide.' : 'Lücken gefunden.'}</h2>
     <p class="muted">${steps.length ? `Ergebnis ${pct}%` : 'Fertig'} · ${min} Min · +${res.points} Punkte</p></div>
-    <div class="card"><div class="row sp"><b>${S.topic.emoji} ${esc(S.topic.name)}</b><span class="chip" style="--c:${S.topic.color}">${L.STATUS_TEXT[st]}</span></div>
+    <div class="card"><div class="row sp"><b>${esc(S.topic.name)}</b><span class="chip" style="--c:${S.topic.color}">${L.STATUS_TEXT[st]}</span></div>
       <div style="margin-top:10px">${bar(p.k / 100, S.topic.color)}</div><small>Wissensstand ${before}% → ${p.k}%</small>
       ${p.gaps.length ? `<p class="warn">${p.gaps.length} offene Lücke${p.gaps.length > 1 ? 'n' : ''}. Die kommen morgen wieder dran.</p>` : '<p class="ok">Keine offenen Lücken.</p>'}
       ${rec ? `<p class="ok" style="margin-top:8px">Wiedereinstieg: ${rec.finished ? 'geschafft, die Kette ist zur Hälfte zurück.' : 'Lektion gezählt.'}</p>` : ''}</div>

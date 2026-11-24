@@ -9,7 +9,7 @@ import { setSoundEnabled } from '../lib/sound.js';
 import { esc } from '../lib/util.js';
 import { ACT, setRefresh } from './nav.js';
 import { initFx, modal, toast } from './fx.js';
-import { mascot } from './mascot.js';
+import { icon } from './icons.js';
 import { authHtml } from './auth.js';
 import { showOnboarding } from './onboarding.js';
 import heute from './heute.js';
@@ -23,16 +23,17 @@ import settings, { onChange as settingsChange } from './settings.js';
 import stundenplan, { onChange as ttChange } from './stundenplan.js';
 import buecher from './buecher.js';
 import importScreen from './import.js';
+import hausaufgaben from './hausaufgaben.js';
 
-const SCREENS = Object.fromEntries([heute, bock, lernen, session, plan, abend, woche, settings, stundenplan, buecher, importScreen].map((s) => [s.route, s]));
+const SCREENS = Object.fromEntries([heute, bock, lernen, session, plan, abend, woche, settings, stundenplan, buecher, importScreen, hausaufgaben].map((s) => [s.route, s]));
 const TABS = [
-  ['heute', '🏠', 'Heute'],
-  ['lernen', '📚', 'Lernen'],
-  ['plan', '🗓️', 'Plan'],
-  ['woche', '📊', 'Woche'],
-  ['settings', '⚙️', 'Mehr'],
+  ['heute', 'home', 'Heute'],
+  ['lernen', 'book', 'Lernen'],
+  ['plan', 'calendar', 'Plan'],
+  ['woche', 'chart', 'Woche'],
+  ['settings', 'gear', 'Mehr'],
 ];
-const TAB_OF = { bock: 'heute', session: 'lernen', abend: 'heute', stundenplan: 'settings', buecher: 'lernen', import: 'lernen' };
+const TAB_OF = { bock: 'heute', session: 'lernen', abend: 'heute', stundenplan: 'settings', buecher: 'lernen', import: 'lernen', hausaufgaben: 'heute' };
 const CHANGE = { 'p-cancel': planChange, 's-set': settingsChange, 't-cell': ttChange };
 
 let current = null;
@@ -66,7 +67,7 @@ function render(keepScroll = false) {
 function shell() {
   const app = document.getElementById('app');
   app.innerHTML = `<div id="sim" class="sim" hidden></div>${installBanner()}<div id="view"></div>
-  <nav class="nav">${TABS.map(([r, ic, l]) => `<a href="#/${r}" data-r="${r}"><span class="ic">${ic}</span>${l}</a>`).join('')}</nav>`;
+  <nav class="nav">${TABS.map(([r, ic, l]) => `<a href="#/${r}" data-r="${r}">${icon(ic, 22)}<span>${l}</span></a>`).join('')}</nav>`;
   view = document.getElementById('view');
 }
 
@@ -95,16 +96,16 @@ function showAlerts() {
   if (al.type === 'missed') {
     const restore = Math.ceil(al.prev / 2);
     const when = al.date === addDays(todayStr(), -1) ? 'Gestern' : niceDate(al.date);
-    modal(`<div class="alert-miss big-msg">${mascot('sad', 90)}<h2>${hard ? `${esc(name)}. ${when} ist komplett ausgefallen. Du Versager.` : `${esc(name)}, ${when} ist komplett ausgefallen.`}</h2>
+    modal(`<div class="alert-miss big-msg"><div class="big-ic" style="color:#ff9b99">${icon('warn', 30)}</div><h2>${hard ? `${esc(name)}. ${when} ist komplett ausgefallen. Du Versager.` : `${esc(name)}, ${when} ist komplett ausgefallen.`}</h2>
       <p>${al.prev ? `Deine Kette von <b>${al.prev}</b> ${al.prev === 1 ? 'Tag' : 'Tagen'} ist gerissen.` : 'Die Kette ist weg.'}</p>
       <p class="muted" style="margin-top:8px">${hard ? 'Das war es. Aber das hier ist nicht das Ende:' : ''} Mach heute <b>drei Mini-Lektionen</b> ${al.prev ? `und du holst <b>${restore}</b> ${restore === 1 ? 'Tag' : 'Tage'} der Streak zurück.` : 'und du bist wieder drin.'}</p>
       <p style="margin-top:8px"><b>Nächster Schritt: Mini-Lektion 1 von 3. Jetzt.</b></p></div>
-      <div class="btns"><a class="btn primary big" href="#/session?mini=1" data-close>⚡ Mini-Lektion starten</a></div>`, {
+      <div class="btns"><a class="btn primary big" href="#/session?mini=1" data-close>Mini-Lektion starten</a></div>`, {
       dismissable: false,
       onMount: (m, close) => m.querySelector('a').addEventListener('click', () => A.markAlertSeen(al.id)),
     });
   } else if (al.type === 'restored') {
-    modal(`<div class="big-msg">${mascot('fire', 90, 'jump')}<h2>Wieder drin.</h2><p>Drei Lektionen geschafft. Die Streak ist mit <b>${al.value}</b> ${al.value === 1 ? 'Tag' : 'Tagen'} zurück (vorher ${al.prev}).</p></div><div class="btns"><button class="btn primary big" data-close>Weiter</button></div>`, {
+    modal(`<div class="big-msg"><div class="big-ic">${icon('flame', 30)}</div><h2>Wieder drin.</h2><p>Drei Lektionen geschafft. Die Streak ist mit <b>${al.value}</b> ${al.value === 1 ? 'Tag' : 'Tagen'} zurück (vorher ${al.prev}).</p></div><div class="btns"><button class="btn primary big" data-close>Weiter</button></div>`, {
       onMount: (m) => m.querySelector('button').addEventListener('click', () => A.markAlertSeen(al.id)),
     });
   }
@@ -192,6 +193,9 @@ export async function start() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') tick20s();
   });
+  N.syncReminders().catch(() => {});
+  setInterval(() => N.syncReminders().catch(() => {}), 10 * 60000);
+  A.ensureDefaultBooks();
   setInterval(tick1s, 1000);
   setInterval(tick20s, 20000);
   tick1s();

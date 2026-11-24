@@ -2,19 +2,19 @@ export const DEFAULT_SETTINGS = {
   name: 'Nils',
   wake: { wk: '07:00', we: '10:00' },
   evening: { wk: '21:30', we: '23:30' },
-  freeLimit: 60,
   weekFlip: false,
-  sdFull: false, // true = immer 30 Min Selbstverteidigung, auch an Sporttagen
+  sdMinutes: 15, // Selbstverteidigung: jeden Tag gleich lang (15, 20 oder 30 Minuten)
   hardTone: true,
   sound: false,
   waterGoal: 3000,
   learnTarget: { wk: 45, we: 60 },
   readMinutes: 20,
   project: '',
-  sportEarliest: '16:00',
+  sportEarliest: '16:00', // Joggen frühestens ab
+  gymEarliest: '19:00', // Gym frühestens ab (immer abends)
   focusShortcut: 'Fokus Lernen',
   topicDays: { min: 3, max: 10 }, // so lange bleibt ein Thema mindestens/höchstens am Stück dran
-  maxExcuses: 2, // akzeptierte Begründungen pro 7 Tage
+  maxExcuses: 1, // akzeptierte Begründungen pro Kalenderwoche
   learnSpeed: 1, // Testwert: 10 = Lernzeit läuft 10x schneller
   mechanics: { streak: true, points: true, titles: true, goals: true, weekly: true, surprise: true },
   // Sport je Wochentag (0 = Mo ... 6 = So)

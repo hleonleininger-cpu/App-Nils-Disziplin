@@ -4,23 +4,43 @@ import { weekdayIdx, weekType, hm, fmt } from '../lib/dates.js';
 import { PERIODS, subjectName, subjectCode } from '../data/timetable.js';
 
 export const COLORS = {
-  school: '#5B8CFF',
-  morning: '#FFC83D',
-  lunch: '#9AA4C7',
-  bock: '#FF7A1A',
-  sport: '#FF4D4D',
-  sd: '#FF7A59',
-  read: '#F472B6',
-  free: '#2DD4BF',
-  project: '#2FA8FF',
-  evening: '#8B5CF6',
-  learn: '#FF9F1C',
+  school: '#7C8CF8',
+  morning: '#E8B04A',
+  lunch: '#8A93A6',
+  bock: '#FF6B2C',
+  sport: '#F0524F',
+  sd: '#E8744F',
+  read: '#D9779F',
+  free: '#3CC4B0',
+  project: '#4DA3E8',
+  evening: '#8E7CF0',
+  learn: '#FF6B2C',
+  hw: '#E8B04A',
+  comp: '#D9534F',
+  travel: '#8A93A6',
 };
 export const SPORT_INFO = {
-  gym: { title: 'Gym', icon: '🏋️' },
-  jog: { title: 'Joggen', icon: '🏃' },
-  handball: { title: 'Handball', icon: '🤾' },
+  gym: { title: 'Gym', icon: 'dumbbell' },
+  jog: { title: 'Joggen', icon: 'run' },
+  handball: { title: 'Handball', icon: 'ball' },
 };
+export const FREE_SLOT = 15; // Minuten pro Druck auf "15 Minuten Freizeit"
+export const HANDBALL_TRAVEL = 20; // Minuten Hin- und Rückweg
+
+/** Tageszeit-Wort für Beschreibungen, richtet sich nach der Uhrzeit des Blocks. */
+export function daypart(startMin) {
+  if (startMin < 12 * 60) return 'Vormittag';
+  if (startMin < 17 * 60) return 'Nachmittag';
+  if (startMin < 21 * 60) return 'Abend';
+  return 'Spät am Abend';
+}
+
+/** Handball gibt es nur Montag (0) und Freitag (4). Alles andere wird als "kein Sport" behandelt. */
+export function sportOf(S, wd) {
+  const sp = S.sport?.[wd] || { type: 'none' };
+  if (sp.type === 'handball' && wd !== 0 && wd !== 4) return { type: 'none' };
+  return sp;
+}
 
 const ceil5 = (x) => Math.ceil(x / 5) * 5;
 
@@ -56,19 +76,21 @@ function placeTask(occ, from, to, dur, min, anchor = null) {
   return null;
 }
 
-export function sdMinutes(S, wd) {
-  const sp = S.sport?.[wd];
-  const sportDay = sp && sp.type && sp.type !== 'none';
-  return S.sdFull ? 30 : sportDay ? 15 : 30;
+/** Selbstverteidigung: jeden Tag gleich lang (Standard 15 Minuten), auch an Gym-Tagen. */
+export function sdMinutes(S) {
+  return [15, 20, 30].includes(Number(S.sdMinutes)) ? Number(S.sdMinutes) : 15;
 }
 export function sdSub(min) {
-  return min >= 30 ? '5 Min Aufwärmen · 15 Min Schattenboxen · 10 Min Kondition' : '3 Min Aufwärmen · 7 Min Schattenboxen · 5 Min Kondition';
+  const parts = { 15: [3, 7, 5], 20: [4, 10, 6], 30: [5, 15, 10] }[min] || [3, 7, 5];
+  return `${parts[0]} Min Aufwärmen · ${parts[1]} Min Schattenboxen · ${parts[2]} Min Seilspringen`;
 }
 
-export function freeBudget(S, D, comp) {
-  const limit = Math.max(0, (S.freeLimit || 0) - (comp?.freeMinus || 0) + (D.freeBonus || 0));
-  const used = (D.freeLog || []).reduce((a, b) => a + (b.min || 0), 0);
-  return { limit, used, remaining: Math.max(0, limit - used) };
+/** Freizeit: kein festes Limit mehr. Jeder Druck auf "15 Minuten Freizeit" erhöht freeSlots. */
+export function freeInfo(D) {
+  const slots = D.freeSlots || 0;
+  const log = D.freeLog || [];
+  const taken = log.reduce((a, b) => a + (b.min || 0), 0);
+  return { slots, takenMin: taken, doneCount: log.length, pending: Math.max(0, slots - log.length) };
 }
 
 /** Zerlegt den Schultag in Unterrichtsblöcke und freie Fenster. */
@@ -102,24 +124,23 @@ export function schoolOf(date, S, TT, D) {
 }
 
 export function windowOptions(win, ctx) {
-  const { S, D, comp, wd, sportBlockDone } = ctx;
+  const { S, wd, sportBlockDone } = ctx;
   const out = [];
-  const sp = S.sport?.[wd];
+  const sp = sportOf(S, wd);
   if (win.minutes >= 25) out.push({ kind: 'learn', label: 'Lernblock', dur: win.minutes, reason: `${win.minutes} Min Lernen` });
-  if (sp && (sp.type === 'gym' || sp.type === 'jog') && !sportBlockDone) {
-    const d = S.sportDur?.[sp.type] || 60;
-    if (win.minutes >= d) out.push({ kind: 'sport', label: SPORT_INFO[sp.type].title, dur: d, reason: `${SPORT_INFO[sp.type].title} passt hier rein (${d} Min)` });
+  // Gym liegt immer abends (ab 19:00), deshalb nur Joggen als Vorschlag für eine Lücke tagsüber
+  if (sp.type === 'jog' && !sportBlockDone) {
+    const d = S.sportDur?.jog || 45;
+    if (win.minutes >= d) out.push({ kind: 'sport', label: 'Joggen', dur: d, reason: `Joggen passt hier rein (${d} Min)` });
   }
-  const sdm = sdMinutes(S, wd);
+  const sdm = sdMinutes(S);
   if (win.minutes >= sdm) out.push({ kind: 'sd', label: 'Selbstverteidigung', dur: sdm, reason: `${sdm} Min Selbstverteidigung` });
   if (win.minutes >= (S.readMinutes || 20)) out.push({ kind: 'read', label: 'Lesen', dur: S.readMinutes || 20, reason: 'Lesen' });
-  const fb = freeBudget(S, D, comp);
-  if (fb.remaining >= 10) out.push({ kind: 'free', label: 'Freizeit', dur: Math.min(fb.remaining, win.minutes), reason: `Freizeit, Rest heute ${fb.remaining} Min (Limit)` });
   return out;
 }
 
 export function buildDay(ctx) {
-  const { date, S, TT, D = {}, carry = [], comp = null, now = null, topic = null, book = null } = ctx;
+  const { date, S, TT, D = {}, carry = [], comp = null, now = null, topic = null, book = null, homework = [] } = ctx;
   const wd = weekdayIdx(date);
   const weekend = wd >= 5;
   const done = D.done || {};
@@ -161,7 +182,7 @@ export function buildDay(ctx) {
   add({
     id: 'morning', kind: 'morning', title: D.wake != null ? 'Aufgestanden' : 'Aufstehen',
     sub: D.wake != null && D.wake !== planWake ? `Geplant ${fmt(planWake)}, tatsächlich ${fmt(D.wake)}` : 'Wasser, fertig machen, los',
-    start: wake, dur: 30, color: COLORS.morning, icon: '⏰', status: D.wake != null || morningAuto ? 'done' : 'pending', fixed: true,
+    start: wake, dur: 30, color: COLORS.morning, icon: 'clock', status: D.wake != null || morningAuto ? 'done' : 'pending', fixed: true,
   });
 
   // Schule
@@ -174,7 +195,7 @@ export function buildDay(ctx) {
     const slept = D.wake != null && D.wake > start;
     add({
       id: `school-${start}`, kind: 'school', title: subjectName(L.cell), sub: `${subjectCode(L.cell)} · ${L.i + 1}.${L.j > L.i ? '–' + (L.j + 1) + '.' : ''} Stunde`.replace(' · ', subjectCode(L.cell) ? ' · ' : ''),
-      start, dur: end - start, color: COLORS.school, icon: '🏫', fixed: true, periods: [L.i + 1, L.j + 1],
+      start, dur: end - start, color: COLORS.school, icon: 'school', fixed: true, periods: [L.i + 1, L.j + 1],
       status: slept ? 'slept' : timeStatus(start, end),
     });
     schoolEnd = Math.max(schoolEnd ?? 0, end);
@@ -194,7 +215,7 @@ export function buildDay(ctx) {
     windows.push({ key, start, end, minutes, source: r.cancelled ? 'ausfall' : 'frei', periods: [r.i + 1, r.j + 1], assigned: D.assign?.[key] || 'learn' });
   }
 
-  const sp = S.sport?.[wd] || { type: 'none' };
+  const sp = sportOf(S, wd);
   let sportInWindow = false;
   const wantedKinds = {};
   let sportDoneAny = false;
@@ -213,11 +234,10 @@ export function buildDay(ctx) {
       title: kind === 'learn' ? `Lernblock (${w.source === 'ausfall' ? 'Ausfall' : 'Freistunde'})` : kind === 'sport' ? SPORT_INFO[sp.type]?.title || 'Sport' : kind === 'sd' ? 'Selbstverteidigung' : kind === 'read' ? 'Lesen' : 'Freizeit',
       sub: `${w.periods[0]}.–${w.periods[1]}. Stunde${kind === 'learn' && topic ? ' · ' + topic.name : ''}`,
       start: w.start, dur, color: kind === 'learn' ? topic?.color || COLORS.learn : COLORS[kind] || COLORS.learn,
-      icon: kind === 'learn' ? topic?.emoji || '📚' : kind === 'sport' ? SPORT_INFO[sp.type]?.icon : kind === 'sd' ? '🥊' : kind === 'read' ? '📖' : '🎮',
+      icon: kind === 'learn' ? topic?.icon || 'book' : kind === 'sport' ? SPORT_INFO[sp.type]?.icon : kind === 'sd' ? 'shield' : 'book',
       topicId: kind === 'learn' ? topic?.id : null, minDur: dur, optional: false,
     };
     b.status = flexStatus(id, b.start + b.dur, true);
-    if (kind === 'free' && D.freeLog?.length >= 99) b.status = 'done';
     add(b);
     if (kind === 'sport') {
       sportInWindow = true;
@@ -231,7 +251,7 @@ export function buildDay(ctx) {
       const id2 = `win-${w.start + dur}-learn`;
       const b2 = {
         id: id2, kind: 'learn', window: true, winKey: w.key, title: 'Lernblock (Rest der Lücke)', sub: topic?.name || '',
-        start: w.start + dur, dur: rest, color: topic?.color || COLORS.learn, icon: topic?.emoji || '📚', topicId: topic?.id,
+        start: w.start + dur, dur: rest, color: topic?.color || COLORS.learn, icon: topic?.icon || 'book', topicId: topic?.id,
       };
       b2.status = flexStatus(id2, b2.start + b2.dur, true);
       add(b2);
@@ -247,7 +267,7 @@ export function buildDay(ctx) {
     const lend = done.lunch?.end != null ? Math.max(ls + 1, Math.min(ls + 30, done.lunch.end)) : ls + 30;
     const b = add({
       id: 'lunch', kind: 'lunch', title: 'Essen & runterkommen', sub: 'Kurz abschalten, dann geht es los', start: ls, dur: lend - ls,
-      color: COLORS.lunch, icon: '🍽️', fixed: true, status: done.lunch ? 'done' : timeStatus(ls, lend),
+      color: COLORS.lunch, icon: 'cup', fixed: true, status: done.lunch ? 'done' : timeStatus(ls, lend),
     });
     lunchEnd = b.end;
   } else if (!weekend) {
@@ -259,24 +279,29 @@ export function buildDay(ctx) {
   const bockStart = lunchEnd;
   add({
     id: 'bock', kind: 'bock', title: 'Worauf hast du Bock?', sub: 'Lernen, Lesen oder Freizeit', start: bockStart, dur: 0,
-    color: COLORS.bock, icon: '🔥', status: D.choice ? 'done' : 'pending',
+    color: COLORS.bock, icon: 'bolt', status: D.choice ? 'done' : 'pending',
   });
 
   // Fester Sport (Handball)
   let fixedSportBlock = null;
   if (sp.type === 'handball') {
     const start = hm(sp.start), end = hm(sp.end);
+    const gone = skipped.handball;
     fixedSportBlock = add({
       id: 'handball', kind: 'sport', fixedSport: true, title: 'Handball', sub: `${sp.start}–${sp.end}`, start, dur: end - start,
-      color: COLORS.sport, icon: '🤾', fixed: true, status: skipped.handball ? 'skipped' : done.handball ? 'done' : timeStatus(start, end),
+      color: COLORS.sport, icon: 'ball', fixed: true, status: gone ? 'skipped' : done.handball ? 'done' : timeStatus(start, end),
     });
     sportDoneAny = fixedSportBlock.status === 'done';
+    if (!gone) {
+      add({ id: 'handball-hin', kind: 'travel', title: 'Hinweg zum Handball', sub: `${HANDBALL_TRAVEL} Min`, start: start - HANDBALL_TRAVEL, dur: HANDBALL_TRAVEL, color: COLORS.travel, icon: 'run', fixed: true, status: timeStatus(start - HANDBALL_TRAVEL, start) });
+      add({ id: 'handball-rueck', kind: 'travel', title: 'Rückweg vom Handball', sub: `${HANDBALL_TRAVEL} Min`, start: end, dur: HANDBALL_TRAVEL, color: COLORS.travel, icon: 'run', fixed: true, status: timeStatus(end, end + HANDBALL_TRAVEL) });
+    }
   }
 
   // Evening
   add({
     id: 'evening', kind: 'evening', title: 'Abendcheck', sub: 'Rückblick · Vaterunser · eigene Worte', start: eveStart, dur: 30,
-    color: COLORS.evening, icon: '🌙', fixed: true, status: D.evening?.done ? 'done' : 'pending',
+    color: COLORS.evening, icon: 'moon', fixed: true, status: D.evening?.done ? 'done' : 'pending',
   });
 
   // Bereits erledigte oder laufende Aufgaben (feste Position)
@@ -285,42 +310,58 @@ export function buildDay(ctx) {
   const learnedMin = (D.learnSec || 0) / 60;
   const pendingWindowLearn = blocks.filter((b) => b.window && b.kind === 'learn' && (b.status === 'pending' || b.status === 'running')).reduce((a, b) => a + b.dur, 0);
   const needLearn = Math.max(0, learnTarget - learnedMin - pendingWindowLearn);
-  if (!sportInWindow && (sp.type === 'gym' || sp.type === 'jog')) {
-    const d = S.sportDur?.[sp.type] || 60;
-    flexDefs.push({ id: 'sport', kind: 'sport', title: SPORT_INFO[sp.type].title, sub: `${d} Min · späterer Nachmittag`, dur: d, min: Math.min(30, d), earliest: hm(S.sportEarliest), color: COLORS.sport, icon: SPORT_INFO[sp.type].icon, carryable: true });
+  const sportLabel = (start) => (start < 12 * 60 ? 'Training am Vormittag' : start < 17 * 60 ? 'Training am Nachmittag' : start < 21 * 60 ? 'Training am Abend' : 'Training spät am Abend');
+  const learnDef = (id, dur) => ({ id, kind: 'learn', title: topic ? `Lernen: ${topic.name}` : 'Lernen', sub: topic?.hint || 'Wissenscheck, dann tiefer', dur, min: 15, color: topic?.color || COLORS.learn, icon: topic?.icon || 'book', topicId: topic?.id, carryable: true });
+
+  // 1) Freizeit-Blöcke, die Nils sich per Knopf genommen hat (je 15 Minuten, ganz vorn)
+  const fr = freeInfo(D);
+  for (let n = 1; n <= fr.slots; n++) {
+    flexDefs.push({ id: `free-${n}`, kind: 'free', title: 'Freizeit', sub: 'Danach geht es sofort weiter', dur: FREE_SLOT, min: FREE_SLOT, color: COLORS.free, icon: 'pause', optional: true });
   }
-  {
-    const learnDef = (id, dur) => ({ id, kind: 'learn', title: topic ? `Lernen: ${topic.name}` : 'Lernen', sub: topic?.hint || 'Wissenscheck, dann tiefer', dur, min: 15, color: topic?.color || COLORS.learn, icon: topic?.emoji || '📚', topicId: topic?.id, carryable: true });
-    for (let i = 1; i <= 4; i++) {
-      const id = i === 1 ? 'learn' : `learn-${i}`;
-      if (done[id] || started[id]) {
-        flexDefs.push(learnDef(id, Math.min(Math.max(needLearn, 15), 60)));
-        continue;
-      }
-      if (needLearn >= 15) flexDefs.push(learnDef(id, Math.min(Math.round(needLearn), 60)));
-      break;
+  // 2) Hausaufgaben (nach Fälligkeit), in Stücken von höchstens 60 Minuten
+  [...homework].sort((x, y) => (x.due || '9999').localeCompare(y.due || '9999')).forEach((h) => {
+    const chunks = D.hwChunks?.[h.id] || 0;
+    const mk = (n, dur) => ({ id: `hw-${h.id}-${n}`, kind: 'hw', hwId: h.id, title: `Hausaufgabe: ${h.subject}`, sub: h.title + (h.due ? ` · fällig ${h.due.slice(8, 10)}.${h.due.slice(5, 7)}.` : ''), dur, min: Math.min(15, dur), color: COLORS.hw, icon: 'pencil', carryable: false });
+    for (let n = 1; n <= chunks; n++) flexDefs.push(mk(n, 30));
+    if ((h.remaining || 0) > 0 && !h.done) flexDefs.push(mk(chunks + 1, Math.min(60, h.remaining)));
+  });
+  // 3) Lernen (Ziel nach Wochentag)
+  for (let i = 1; i <= 4; i++) {
+    const id = i === 1 ? 'learn' : `learn-${i}`;
+    if (done[id] || started[id]) {
+      flexDefs.push(learnDef(id, Math.min(Math.max(needLearn, 15), 60)));
+      continue;
     }
+    if (needLearn >= 15) flexDefs.push(learnDef(id, Math.min(Math.round(needLearn), 60)));
+    break;
+  }
+  // 4) Ausgleich nach einer akzeptierten Begründung (ersetzt die früheren "15 Minuten weniger Freizeit")
+  if (comp?.freeMinus) {
+    flexDefs.push({ id: 'comp', kind: 'comp', title: 'Ausgleich für gestern', sub: `${comp.freeMinus} Min extra${comp.extraPages ? ` und ${comp.extraPages} Seite mehr lesen` : ''}`, dur: comp.freeMinus, min: comp.freeMinus, color: COLORS.comp, icon: 'bolt', carryable: false });
   }
   carry.slice(0, 2).forEach((c) => {
     const kind = c.kind;
     flexDefs.push({
       id: `carry-${c.id}`, kind, carryId: c.id, title: `Nachholen: ${kind === 'learn' ? 'Lernen' : kind === 'read' ? 'Lesen' : kind === 'sd' ? 'Selbstverteidigung' : 'Sport'}`,
       sub: `Von ${c.from} liegengeblieben`, dur: c.min, min: Math.min(15, c.min), color: kind === 'learn' ? topic?.color || COLORS.learn : COLORS[kind] || COLORS.learn,
-      icon: kind === 'learn' ? '📚' : kind === 'read' ? '📖' : kind === 'sd' ? '🥊' : '🏃', topicId: kind === 'learn' ? topic?.id : null, carried: true, carryable: false,
+      icon: kind === 'learn' ? 'book' : kind === 'read' ? 'book' : kind === 'sd' ? 'shield' : 'run', topicId: kind === 'learn' ? topic?.id : null, carried: true, carryable: false,
     });
   });
+  // 5) Selbstverteidigung: jeden Tag, vor Sport und Lesen eingeplant, damit sie nie aus dem Plan fällt
   if (!wantedKinds.sd) {
-    const m = sdMinutes(S, wd);
-    flexDefs.push({ id: 'sd', kind: 'sd', title: 'Selbstverteidigung', sub: sdSub(m), dur: m, min: 10, color: COLORS.sd, icon: '🥊', carryable: true });
+    const m = sdMinutes(S);
+    flexDefs.push({ id: 'sd', kind: 'sd', title: 'Selbstverteidigung', sub: sdSub(m), dur: m, min: m, color: COLORS.sd, icon: 'shield', carryable: true, must: true });
+  }
+  // 6) Sport: Gym ab 19:00 (eine feste Dauer), Joggen flexibel ab 16:00
+  if (!sportInWindow && (sp.type === 'gym' || sp.type === 'jog')) {
+    const d = S.sportDur?.[sp.type] || (sp.type === 'gym' ? 75 : 45);
+    flexDefs.push({ id: 'sport', kind: 'sport', title: SPORT_INFO[sp.type].title, sub: '', subFn: sportLabel, dur: d, min: d, earliest: hm(sp.type === 'gym' ? S.gymEarliest || '19:00' : S.sportEarliest || '16:00'), color: COLORS.sport, icon: SPORT_INFO[sp.type].icon, carryable: true });
   }
   if (!wantedKinds.read) {
     const extra = comp?.extraPages ? ` · +${comp.extraPages} Seite Ausgleich` : '';
-    flexDefs.push({ id: 'read', kind: 'read', title: 'Lesen', sub: (book ? book.title : 'Buch') + extra, dur: S.readMinutes || 20, min: 10, color: COLORS.read, icon: '📖', carryable: true });
+    flexDefs.push({ id: 'read', kind: 'read', title: 'Lesen', sub: (book ? book.title : 'Buch') + extra, dur: S.readMinutes || 20, min: 10, color: COLORS.read, icon: 'book', carryable: true });
   }
-  if (S.project) flexDefs.push({ id: 'project', kind: 'project', title: `Projekt: ${S.project}`, sub: '30 Min dranbleiben', dur: 30, min: 15, color: COLORS.project, icon: '🛠️', optional: true });
-  const fb = freeBudget(S, D, comp);
-  const nFree = (D.freeLog || []).length;
-  if (fb.remaining >= 5) flexDefs.push({ id: `free-${nFree + 1}`, kind: 'free', title: 'Freizeit', sub: `Limit heute: noch ${fb.remaining} Min`, dur: fb.remaining, min: 5, color: COLORS.free, icon: '🎮', optional: true });
+  if (S.project) flexDefs.push({ id: 'project', kind: 'project', title: `Projekt: ${S.project}`, sub: '30 Min dranbleiben', dur: 30, min: 15, color: COLORS.project, icon: 'wrench', optional: true });
 
   // Wahl "Worauf hast du Bock?" bevorzugt
   let ordered = flexDefs;
@@ -364,6 +405,7 @@ export function buildDay(ctx) {
     add({ ...f, start: spot.start, dur: spot.dur, status: 'pending', shrunk: spot.dur < f.dur });
   }
 
+  for (const b of blocks) if (b.subFn) b.sub = b.subFn(b.start);
   blocks.sort((a, b) => a.start - b.start || (a.kind === 'bock' ? -1 : 0));
 
   // Aktuell und Nächstes
@@ -393,7 +435,7 @@ export function buildDay(ctx) {
   return {
     date, wd, weekend, weekType: school.wt, blocks, windows, overflow, current, next, nextFixed,
     wake, planWake, morningEnd, schoolEnd, eveStart, limitEnd, lessons: school.lessons, periods: school.periods,
-    free: fb, sport: sp, sportDone: sportDoneAny || blocks.some((b) => b.kind === 'sport' && b.status === 'done'), noSchool,
+    free: fr, sport: sp, sportDone: sportDoneAny || blocks.some((b) => b.kind === 'sport' && b.status === 'done'), noSchool,
     bockStart,
   };
 }

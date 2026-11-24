@@ -154,6 +154,9 @@ export function allDays() {
   return out;
 }
 export const getBooks = () => get('books', []);
+export function allHomework() {
+  return keys('hw:').map((k) => data[k].v);
+}
 export const setBooks = (b) => set('books', b);
 export const getCustomTopics = () => get('topics', []);
 export const getPack = (id) => get('pack:' + id, null);

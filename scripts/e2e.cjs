@@ -1,5 +1,5 @@
 // End-to-End-Test: spielt typische Tage durch (Woche A/B, Ausfall, Verschlafen, verpasster Tag).
-// Start: npm run build && npm run e2e   (Screenshots landen in ./e2e-shots)
+// Start: npm run e2e  (baut ohne Cloud-Zugang nach dist-e2e)   (Screenshots landen in ./e2e-shots)
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -8,6 +8,7 @@ const path = require('path');
 const PORT = process.env.PORT || 4173;
 const URL = `http://localhost:${PORT}/`;
 const SHOTS = process.env.SHOTS || path.join(__dirname, '..', 'e2e-shots');
+fs.rmSync(SHOTS, { recursive: true, force: true });
 fs.mkdirSync(SHOTS, { recursive: true });
 
 let fails = 0;
@@ -28,11 +29,11 @@ async function waitServer() {
 }
 
 (async () => {
-  const srv = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: path.join(__dirname, '..'), stdio: 'ignore' });
+  const srv = spawn('npx', ['vite', 'preview', '--outDir', 'dist-e2e', '--mode', 'e2e', '--port', String(PORT), '--strictPort'], { cwd: path.join(__dirname, '..'), stdio: 'ignore' });
   try {
     await waitServer();
     const browser = await chromium.launch();
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, locale: 'de-DE', timezoneId: 'Europe/Berlin', permissions: ['notifications'] });
+    const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, locale: 'de-DE', timezoneId: 'Europe/Berlin', permissions: ['notifications'] });
     const page = await ctx.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -71,7 +72,7 @@ async function waitServer() {
     await click('Sauber starten');
     let t = await text();
     ok(/Aufstehen um 07:00/.test(t), 'Hero: Aufstehen um 07:00 (Mo, Woche B)');
-    ok(/Moin|Guten Morgen/.test(t) || /Nils/.test(t), 'Begrüßung mit Vornamen');
+    ok(/nils/i.test(t), 'Startseite spricht Nils mit Vornamen an');
     await shot('heute-morgens');
     // Lernzeit-Beschleuniger für den Test
     await page.goto(URL + '#/settings');
@@ -96,7 +97,7 @@ async function waitServer() {
     ok(/Essen & runterkommen|Worauf hast du Bock/.test(t), 'Nach 15:20: Essen, dann Bock-Frage');
     await click('Fertig, weiter');
     t = await text();
-    ok(/worauf hast du Bock/i.test(t), 'Bock-Frage erscheint nach dem Essen');
+    ok(/was jetzt\?/i.test(t), 'Bock-Frage erscheint nach dem Essen');
     await click('Auswählen');
     await page.waitForURL(/#\/bock/);
     t = await page.locator('#view').innerText();
@@ -213,17 +214,23 @@ async function waitServer() {
     t = await text();
     ok(/Ausfall · 11:35–13:10/.test(t), 'Ausfall 5./6. Stunde erzeugt Fenster 11:35–13:10');
     await shot('plan-ausfall');
-    await page.goto(URL + '#/plan?day=2026-12-01'); // Di Woche A -> Gym
+    await page.goto(URL + '#/plan?day=2026-12-02'); // Mi Woche A -> Joggen
     await page.waitForSelector('.per');
-    await page.locator('.per label', { hasText: '3. Std' }).click();
-    await page.locator('.per label', { hasText: '4. Std' }).click();
+    await page.locator('.per label', { hasText: '5. Std' }).click();
+    await page.locator('.per label', { hasText: '6. Std' }).click();
     await page.waitForTimeout(300);
     t = await text();
-    ok(/Gym passt hier rein/.test(t), 'Di 3./4. Stunde Ausfall: Vorschlag Gym');
-    await page.locator('.pill', { hasText: 'Gym' }).first().click();
+    ok(/Joggen passt hier rein/.test(t), 'Mi 5./6. Stunde Ausfall: Vorschlag Joggen');
+    ok(!/Gym passt/.test(t), 'Gym wird nie tagsüber vorgeschlagen (nur abends ab 19:00)');
+    await page.locator('.pill', { hasText: 'Joggen' }).first().click();
     await page.waitForTimeout(300);
     t = await text();
-    ok(/Gym/.test(t) && /09:40/.test(t), 'Gym im Fenster ab 09:40 übernommen');
+    ok(/Joggen/.test(t) && /11:35/.test(t), 'Joggen im Fenster ab 11:35 übernommen');
+    await page.goto(URL + '#/plan?day=2026-12-01'); // Di = Gym
+    await page.waitForTimeout(300);
+    t = await text();
+    ok(/Gym/.test(t) && /Training am Abend/.test(t), 'Plan: Gym am Abend, Beschreibung nach Uhrzeit');
+    ok(!/75 Min · 75 Min|50 Min · 75 Min/.test(t), 'Plan: Gym-Dauer nicht doppelt oder widersprüchlich');
 
     // ---- Verschlafen am Samstag ----
     await at('2026-11-28', '10:05');
@@ -265,23 +272,31 @@ async function waitServer() {
     await click('Ich bin wach');
     await at('2026-12-01', '15:30');
     t = await text();
-    ok(/worauf hast du Bock/i.test(t), 'Di (A): nach der Schule kommt die Bock-Frage');
+    ok(/was jetzt\?/i.test(t), 'Di (A): nach der Schule kommt die Bock-Frage');
     await click('Auswählen');
     await page.locator('[data-kind="free"]').click();
     await page.waitForSelector('.hero');
+    await page.waitForTimeout(200);
     await click('Freizeit starten');
     await page.waitForSelector('.timer');
-    await at('2026-12-01', '15:30'); // Reload hält Timer-Zustand
-    await page.waitForTimeout(100);
-    await page.evaluate(() => { const j = JSON.parse(localStorage.getItem('disziplin.v1')); const d = j.data['day:2026-12-01'].v; d.started['free-1'].ts -= 20 * 60000; d.started['free-1'].min -= 20; localStorage.setItem('disziplin.v1', JSON.stringify(j)); });
-    await page.waitForTimeout(100);
-    // localStorage wird beim Reload von pagehide überschrieben, daher direkt über UI beenden:
     await click('Freizeit beenden');
     await page.waitForTimeout(500);
     await page.locator('.celebrate').click().catch(() => {});
     t = await text();
-    ok(/noch \d+ von 60 Min/.test(t) || /noch \d+ Min/.test(t), 'Freizeit wird nach dem Beenden verrechnet');
+    ok(/\d+ Min genommen/.test(t), 'Freizeit wird nach dem Beenden verrechnet (neues Modell)');
     await shot('freizeit-verrechnet');
+    // 15-Minuten-Knopf: nimmt, bis der Plan voll ist, dann klare Ablehnung
+    let accepted = 0;
+    let rejectMsg = '';
+    for (let i = 0; i < 30; i++) {
+      await page.locator('[data-act="h-free"]').click();
+      await page.waitForTimeout(120);
+      const toastTxt = await page.locator('.toast').last().innerText().catch(() => '');
+      if (/Nein\./.test(toastTxt)) { rejectMsg = toastTxt; break; }
+      accepted++;
+    }
+    ok(accepted >= 1 && /Nein\./.test(rejectMsg), `15 Minuten Freizeit: ${accepted}x angenommen, dann abgelehnt mit Begründung`);
+    ok(/Aufgaben|Plan/.test(rejectMsg), 'Ablehnung nennt den Grund');
     // Tauschen
     await click('Anderes zuerst');
     await page.locator('[data-bid="sport"]').click();
@@ -297,7 +312,7 @@ async function waitServer() {
     await page.locator('.celebrate').click();
     await page.waitForTimeout(400);
     t = await text();
-    ok(/✅/.test(t), 'Erledigtes Gym ist im Tagesverlauf abgehakt');
+    ok((await page.locator('.tl-item.done').count()) >= 1, 'Erledigtes ist im Tagesverlauf abgehakt');
     // Lesen mit Seiten
     await click('Anderes zuerst');
     await page.locator('[data-bid="read"]').click();
@@ -315,13 +330,32 @@ async function waitServer() {
     await page.keyboard.press('Escape');
     await page.mouse.click(10, 10);
     await page.waitForTimeout(300);
-    // Einstellung ändern
+    // Einstellungen: echte Schalter in der Karte
     await page.goto(URL + '#/settings');
-    await page.locator('input[data-path="freeLimit"]').fill('30');
-    await page.locator('input[data-path="freeLimit"]').dispatchEvent('change');
+    await page.waitForSelector('.sw');
+    const sw = await page.evaluate(() => { const c = document.querySelector('.sw'); const r = c.getBoundingClientRect(); const card = c.closest('.card').getBoundingClientRect(); return { w: r.width, h: r.height, inside: r.right <= card.right && r.left >= card.left }; });
+    ok(sw.w >= 40 && sw.h >= 24 && sw.inside, `Schalter hat Größe ${Math.round(sw.w)}x${Math.round(sw.h)} und sitzt in der Karte`);
+    const before = await page.locator('input[data-path="hardTone"]').isChecked();
+    await page.locator('.sw').first().click();
+    ok((await page.locator('input[data-path="hardTone"]').isChecked()) !== before, 'Schalter lässt sich umlegen');
+    await page.locator('.sw').first().click();
+    await shot('settings-schalter');
+    ok(!(await page.locator('select[data-path="sport.2.type"] option[value="handball"]').count()), 'Handball ist nur für Mo und Fr wählbar');
+    ok((await page.locator('select[data-path="sport.0.type"] option[value="handball"]').count()) === 1, 'Handball ist für Montag wählbar');
+    // Hausaufgabe
+    await page.goto(URL + '#/hausaufgaben');
+    await page.locator('#hw-title').fill('Aufgaben 3 bis 7');
+    await page.locator('.pill', { hasText: '1 Std' }).click();
+    await page.locator('#hw-title').fill('Aufgaben 3 bis 7');
+    await page.locator('[data-act="hw-add"]').click();
+    await page.waitForTimeout(300);
+    ok(/Aufgaben 3 bis 7/.test(await text()), 'Hausaufgabe wird eingetragen');
+    await shot('hausaufgaben');
     await page.goto(URL + '#/heute');
-    t = await text();
-    ok(/von 30 Min|noch \d+ Min/.test(t), 'Freizeitlimit aus den Einstellungen wirkt');
+    ok(/Hausaufgabe/.test(await text()), 'Hausaufgabe taucht im Tagesplan auf');
+    // Wasser-Korrektur-Knopf
+    await page.goto(URL + '#/heute');
+    ok(await page.locator('[data-act="h-water"][data-ml="-250"]').isDisabled(), '−250 ml ist bei 0 gesperrt');
     // Import
     await page.goto(URL + '#/import');
     await page.locator('#imp').fill(JSON.stringify({ topic: 'finanzen', title: 'E2E Paket', summary: 'x', quiz: [{ q: 'A?', options: ['a', 'b'], answer: 0 }, { q: 'B?', options: ['a', 'b'], answer: 1 }], flashcards: [{ q: 'q', a: 'a' }, { q: 'q2', a: 'a2' }, { q: 'q3', a: 'a3' }] }));
@@ -338,7 +372,7 @@ async function waitServer() {
     ok(/MD Paket/.test(await page.locator('#res').innerText()), 'Markdown-Import wird erkannt');
     await page.locator('#imp').fill('{kaputt');
     await page.getByRole('button', { name: 'Prüfen' }).click();
-    ok(/JSON ist ungültig/.test(await page.locator('#res').innerText()), 'Kaputtes JSON wird abgefangen');
+    ok(/JSON unvollständig oder fehlerhaft/.test(await page.locator('#res').innerText()), 'Kaputtes JSON wird verständlich gemeldet');
     // Begründung am Abend
     await at('2026-12-02', '22:00');
     await dismissAlert();
@@ -363,8 +397,15 @@ async function waitServer() {
     await page.locator('.modal').count().then(async (c) => { if (c) await dismissAlert(); });
     t = await text();
     ok(!/Du Versager/.test(t), 'Entschuldigter Tag löst keine Versager-Meldung aus');
-    ok(/45 Min|noch 45/.test(t) || /Freizeit/.test(t), 'Ausgleich am Folgetag: Freizeitlimit sinkt');
+    ok(/Ausgleich für gestern/.test(t), 'Ausgleich am Folgetag steht im Plan (vor der Freizeit)');
 
+    // Mobile Breite: kein horizontales Scrollen
+    for (const r of ['heute', 'lernen', 'plan', 'woche', 'settings', 'hausaufgaben', 'import', 'buecher', 'stundenplan']) {
+      await page.goto(URL + '#/' + r);
+      await page.waitForTimeout(200);
+      const sw2 = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      ok(sw2 <= 1, `375 px: ${r} ohne horizontales Scrollen (${sw2})`);
+    }
     ok(errors.length === 0, `Keine Konsolenfehler (${errors.length})`);
     errors.slice(0, 10).forEach((e) => console.log('   ', e));
     await browser.close();

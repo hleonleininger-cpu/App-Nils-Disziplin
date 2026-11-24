@@ -77,6 +77,19 @@ describe('Tageswechsel und verpasster Tag', () => {
   });
 });
 
+describe('Begründung (eine pro Woche)', () => {
+  it('die zweite in derselben Woche wird abgelehnt', () => {
+    boot('2026-11-23', '22:00'); // Montag
+    expect(A.submitExcuse('2026-11-23', { cat: 'krank', text: 'Ich hatte Fieber und lag den ganzen Tag im Bett.' }).ok).toBe(true);
+    setSimulated('2026-11-25', '22:00');
+    const v = A.submitExcuse('2026-11-25', { cat: 'familie', text: 'Wir waren den ganzen Tag bei meiner Oma im Krankenhaus.' });
+    expect(v.ok).toBe(false);
+    expect(v.msg).toMatch(/diese Woche/);
+    setSimulated('2026-12-01', '22:00'); // nächste Woche geht wieder
+    expect(A.submitExcuse('2026-12-01', { cat: 'krank', text: 'Ich hatte wieder Fieber und lag im Bett, Arzt war da.' }).ok).toBe(true);
+  });
+});
+
 describe('Begründung', () => {
   it('plausible Begründung rettet den Tag und gibt Ausgleich für morgen', () => {
     boot('2026-11-24', '22:00');
@@ -86,7 +99,8 @@ describe('Begründung', () => {
     expect(m.comps['2026-11-25']).toMatchObject({ freeMinus: 15, extraPages: 1 });
     setSimulated('2026-11-25', '12:00');
     const plan = A.planFor('2026-11-25');
-    expect(plan.free.limit).toBe(45);
+    const comp = plan.blocks.find((b) => b.id === 'comp');
+    expect(comp.dur).toBe(15); // Ausgleich kommt vor die Freizeit
     // Tag zählt als entschuldigt, Streak bleibt
     expect(A.streakNow()).toBe(0);
     setSimulated('2026-11-26', '08:00');
@@ -104,16 +118,54 @@ describe('Begründung', () => {
 });
 
 describe('Freizeit', () => {
-  it('Freizeit wird gegen das Tageslimit gerechnet', () => {
+  it('15 Minuten Freizeit gehen nur, solange danach alles in den Tag passt', () => {
     boot('2026-11-24', '16:00');
-    store.updateDay('2026-11-24', (D) => { D.wake = 420; D.choice = { kind: 'free' }; });
-    const free = A.planFor('2026-11-24').blocks.find((b) => b.kind === 'free');
-    expect(free.dur).toBe(60);
-    A.finishBlock('2026-11-24', free, { minutes: 35 });
+    store.updateDay('2026-11-24', (D) => { D.wake = 420; D.done = { lunch: { start: 790, end: 800, min: 10 } }; });
+    const r1 = A.requestFree('2026-11-24');
+    expect(r1.ok).toBe(true);
+    let n = 1;
+    while (A.requestFree('2026-11-24').ok && n < 40) n++;
+    expect(n).toBeGreaterThan(1);
     const p = A.planFor('2026-11-24');
-    expect(p.free.used).toBe(35);
-    expect(p.free.remaining).toBe(25);
-    expect(p.blocks.find((b) => b.kind === 'free' && b.status === 'pending').dur).toBe(25);
+    expect(p.overflow.filter((o) => o.carryable)).toEqual([]); // nichts ist aus dem Plan gefallen
+    const r = A.requestFree('2026-11-24');
+    expect(r.ok).toBe(false);
+    expect(r.msg).toMatch(/nicht mehr|Plan/);
+  });
+  it('Freizeit wird mit der echten Zeit verrechnet', () => {
+    boot('2026-11-24', '16:00');
+    store.updateDay('2026-11-24', (D) => { D.wake = 420; D.done = { lunch: { start: 790, end: 800, min: 10 } }; });
+    A.requestFree('2026-11-24');
+    const free = A.planFor('2026-11-24').blocks.find((b) => b.kind === 'free');
+    A.finishBlock('2026-11-24', free, { minutes: 12 });
+    expect(A.planFor('2026-11-24').free.takenMin).toBe(12);
+  });
+});
+
+describe('Hausaufgaben (Aktionen)', () => {
+  it('Eintragen, einplanen, abhaken zieht Restzeit ab und zählt als Lernzeit', () => {
+    boot('2026-11-24', '16:00');
+    store.updateDay('2026-11-24', (D) => { D.wake = 420; D.done = { lunch: { start: 790, end: 800, min: 10 } }; });
+    const id = A.addHomework({ subject: 'Mathe', title: 'Blatt', effort: 120 });
+    const b = A.planFor('2026-11-24').blocks.find((x) => x.kind === 'hw');
+    expect(b.dur).toBe(60);
+    A.finishBlock('2026-11-24', b, { minutes: 60 });
+    expect(store.get('hw:' + id).remaining).toBe(60);
+    expect(store.getDay('2026-11-24').learnSec).toBe(3600);
+    expect(A.streakNow()).toBe(1);
+    const b2 = A.planFor('2026-11-24').blocks.filter((x) => x.kind === 'hw');
+    expect(b2.map((x) => x.status)).toEqual(['done', 'pending']);
+  });
+});
+
+describe('Bücher', () => {
+  it('die beiden aktuellen Bücher sind vorangelegt', () => {
+    boot('2026-11-24', '16:00');
+    A.ensureDefaultBooks();
+    const t = store.getBooks().map((b) => b.title);
+    expect(t).toEqual(['Die 1 %-Methode', 'Think and Grow Rich']);
+    A.ensureDefaultBooks();
+    expect(store.getBooks()).toHaveLength(2);
   });
 });
 

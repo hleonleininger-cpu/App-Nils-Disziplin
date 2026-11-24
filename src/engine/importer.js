@@ -200,18 +200,77 @@ export function parseMarkdown(md) {
   return raw;
 }
 
+/** Entfernt Code-Zäune und Text drumherum, damit auch "```json ... ```" oder eine Antwort mit Einleitung funktioniert. */
+export function extractJsonText(text) {
+  let x = String(text || '').replace(/^\uFEFF/, '').trim();
+  const fence = x.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) x = fence[1].trim();
+  if (!/^[\[{]/.test(x) && !/^#\s/m.test(x)) {
+    const i = x.search(/[\[{]/);
+    if (i >= 0) x = x.slice(i);
+  }
+  return x;
+}
+
+/** Erklärt einen JSON-Fehler verständlich: Zeile, Spalte und fehlende Klammern. */
+export function describeJsonError(src, err) {
+  let line = null;
+  let col = null;
+  const m1 = String(err.message).match(/line (\d+) column (\d+)/);
+  const m2 = String(err.message).match(/position (\d+)/);
+  if (m1) {
+    line = Number(m1[1]);
+    col = Number(m1[2]);
+  } else if (m2) {
+    const before = src.slice(0, Number(m2[1]));
+    line = before.split('\n').length;
+    col = before.length - before.lastIndexOf('\n');
+  }
+  // Klammern außerhalb von Zeichenketten zählen
+  let depthCurly = 0;
+  let depthSquare = 0;
+  let inStr = false;
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (inStr) {
+      if (c === '\\') i++;
+      else if (c === '"') inStr = false;
+    } else if (c === '"') inStr = true;
+    else if (c === '{') depthCurly++;
+    else if (c === '}') depthCurly--;
+    else if (c === '[') depthSquare++;
+    else if (c === ']') depthSquare--;
+  }
+  const hints = [];
+  if (depthCurly > 0) hints.push(`Es fehlen ${depthCurly} schließende geschweifte Klammer${depthCurly > 1 ? 'n' : ''} }`);
+  if (depthCurly < 0) hints.push(`Es sind ${-depthCurly} schließende } zu viel`);
+  if (depthSquare > 0) hints.push(`Es fehlen ${depthSquare} schließende eckige Klammer${depthSquare > 1 ? 'n' : ''} ]`);
+  if (depthSquare < 0) hints.push(`Es sind ${-depthSquare} schließende ] zu viel`);
+  if (inStr) hints.push('Ein Text in Anführungszeichen ist nicht geschlossen');
+  return `JSON unvollständig oder fehlerhaft${line ? ` (Zeile ${line}, Spalte ${col})` : ''}. ${hints.length ? hints.join('. ') + '. ' : 'Prüfe Kommas und Anführungszeichen. '}Das Paket wurde nicht gelesen, deshalb gibt es keine Feldfehler.`;
+}
+
 /** Nimmt Text (JSON oder Markdown) und liefert eine Liste geprüfter Pakete. */
 export function parseImport(text) {
-  const t = String(text || '').trim();
+  const t = extractJsonText(text);
   if (!t) return { results: [], fatal: 'Nichts eingefügt.' };
   let raws = [];
   if (t.startsWith('{') || t.startsWith('[')) {
+    let j;
     try {
-      const j = JSON.parse(t);
-      raws = Array.isArray(j) ? j : Array.isArray(j.packs) ? j.packs : [j];
+      j = JSON.parse(t);
     } catch (e) {
-      return { results: [], fatal: 'JSON ist ungültig: ' + e.message };
+      return { results: [], fatal: describeJsonError(t, e) };
     }
+    raws = Array.isArray(j) ? j : Array.isArray(j.packs) ? j.packs : [j];
+    // Eingepackt in {"pack": {...}} o. Ä. auspacken
+    raws = raws.map((r) => {
+      if (r && typeof r === 'object' && !r.topic && !r.title) {
+        const inner = Object.values(r).find((v) => v && typeof v === 'object' && !Array.isArray(v) && (v.topic || v.title));
+        if (inner) return inner;
+      }
+      return r;
+    });
   } else {
     // Mehrere Markdown-Pakete: durch eine Zeile "---" getrennt
     raws = t.split(/\n-{3,}\s*\n/).filter((x) => x.trim()).map(parseMarkdown);

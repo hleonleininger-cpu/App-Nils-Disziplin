@@ -3,6 +3,7 @@ import { esc } from '../lib/util.js';
 import { matchKeyPoints } from '../engine/learning.js';
 import { play } from '../lib/sound.js';
 import { toast } from './fx.js';
+import { icon } from './icons.js';
 
 const SR = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
 
@@ -26,15 +27,15 @@ export function attachMic(btn, ta) {
     rec.onend = () => {
       rec = null;
       btn.classList.remove('rec');
-      btn.textContent = '🎤 Sprechen';
+      btn.innerHTML = `${icon('mic', 16)} Sprechen`;
     };
     rec.onerror = () => {
       rec = null;
       btn.classList.remove('rec');
-      btn.textContent = '🎤 Sprechen';
+      btn.innerHTML = `${icon('mic', 16)} Sprechen`;
     };
     btn.classList.add('rec');
-    btn.textContent = '⏹ Fertig gesprochen';
+    btn.innerHTML = `${icon('stop', 16)} Fertig gesprochen`;
     try {
       rec.start();
     } catch {
@@ -87,7 +88,7 @@ export function runItems(el, items, { voice = false, onDone }) {
       // offene Frage
       el.innerHTML = `${head}<h2 style="margin:8px 0">${esc(it.q)}</h2>${voice ? '<p class="muted">Sprich deine Antwort laut. Danach gleichst du sie mit den Stichwörtern ab.</p>' : ''}
         <textarea id="ans" placeholder="${voice ? 'Dein gesprochener Text erscheint hier' : 'Deine Antwort in eigenen Worten'}"></textarea>
-        <div class="btns">${voice ? '<button class="btn mic" id="mic">🎤 Sprechen</button>' : ''}<button class="btn primary" id="chk">Prüfen</button></div><div id="ir-fb"></div>`;
+        <div class="btns">${voice ? `<button class="btn mic" id="mic">${icon('mic', 16)} Sprechen</button>` : ''}<button class="btn primary" id="chk">Prüfen</button></div><div id="ir-fb"></div>`;
       if (voice) attachMic(el.querySelector('#mic'), el.querySelector('#ans'));
       el.querySelector('#chk').onclick = () => {
         const text = el.querySelector('#ans').value;

@@ -1,10 +1,10 @@
 import * as sync from '../core/sync.js';
 import { esc } from '../lib/util.js';
-import { mascot } from './mascot.js';
+import { icon } from './icons.js';
 import { ACT } from './nav.js';
 
 export function authHtml(msg = '') {
-  return `<div class="big-msg" style="margin-top:40px">${mascot('happy', 90)}<h1 style="margin-top:8px">Disziplin</h1><p class="muted">Melde dich an, damit alles auf iPhone, MacBook und PC gleich ist.</p></div>
+  return `<div class="big-msg" style="margin-top:40px"><div class="big-ic">${icon('flame', 30)}</div><h1 style="margin-top:12px">Disziplin</h1><p class="muted">Melde dich an, damit alles auf iPhone, MacBook und PC gleich ist.</p></div>
   <div class="card"><label class="f" style="margin-top:0">E-Mail</label><input type="email" id="au-mail" autocomplete="email" inputmode="email">
   <label class="f">Passwort</label><input type="password" id="au-pw" autocomplete="current-password">
   <div class="btns"><button class="btn primary" data-act="au-in">Anmelden</button><button class="btn" data-act="au-up">Konto anlegen</button></div>
@@ -24,7 +24,8 @@ async function wrap(fn) {
 }
 ACT['au-in'] = () => wrap(() => sync.signIn(val('au-mail'), document.getElementById('au-pw').value));
 ACT['au-up'] = () => wrap(async () => {
-  const r = await sync.signUp(val('au-mail'), document.getElementById('au-pw').value);
+  const invite = new URLSearchParams(location.search).get('invite') || '';
+  const r = await sync.signUp(val('au-mail'), document.getElementById('au-pw').value, invite);
   if (!r.session) throw new Error('Konto angelegt. Bestätige die E-Mail (Link im Postfach), dann melde dich an.');
 });
 ACT['au-code'] = async () => {
