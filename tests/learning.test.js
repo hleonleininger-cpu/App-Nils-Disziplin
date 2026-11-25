@@ -6,7 +6,7 @@ import { DEFAULT_TOPICS } from '../src/data/topics.js';
 
 describe('Import JSON', () => {
   it('gültiges Paket', () => {
-    const r = parseImport(JSON.stringify({ topic: 'finanzen', title: 'Test', quiz: [{ q: 'A?', options: ['a', 'b'], answer: 1 }] }));
+    const r = parseImport(JSON.stringify({ topic: 'finanzen', title: 'Test', sources: [{ title: 'BGB § 488' }], quiz: [{ q: 'A?', options: ['a', 'b'], answer: 1 }] }));
     expect(r.results[0].ok).toBe(true);
     expect(r.results[0].pack.id).toBe('finanzen-test');
   });
@@ -14,10 +14,10 @@ describe('Import JSON', () => {
     expect(parseImport('{ kaputt').fatal).toMatch(/JSON/);
   });
   it('meldet fehlende Felder und falschen Antwortindex', () => {
-    const r = validatePack({ title: 'x', quiz: [{ q: 'A?', options: ['a', 'b'], answer: 5 }] });
+    const r = validatePack({ title: 'x', quiz: [{ q: 'A?', options: ['a', 'b'], answer: 5 }] }, { strict: true });
     expect(r.ok).toBe(false);
     expect(r.errors.join(' ')).toMatch(/topic/);
-    expect(r.warnings.join(' ')).toMatch(/Quiz-Frage 1/);
+    expect(r.errors.join(' ')).toMatch(/Quiz-Frage 1/);
   });
   it('alle eingebauten Pakete sind gültig', () => {
     for (const p of BUILTIN_PACKS) {
@@ -61,7 +61,15 @@ Begriffe: Zins; Kredit
 Nachfragen: Warum gibt es Zins?
 
 ## Quellen
-- Bundesbank | https://www.bundesbank.de`;
+- Bundesbank | https://www.bundesbank.de
+
+## Praxisaufgabe
+Aufgabe: Rechne ein eigenes Beispiel.
+So geht's: Nimm 1000 Euro und 5 Prozent.
+Check: Du kommst auf 1629 nach 10 Jahren.
+
+## Unsicher
+- Die genaue Inflationsrate hängt vom Jahr ab.`;
   it('parst alle Abschnitte', () => {
     const r = parseImport(md).results[0];
     expect(r.errors).toEqual([]);
@@ -148,7 +156,7 @@ describe('Sync-Zuordnung', () => {
 });
 
 describe('Import: Fehlermeldungen', () => {
-  const good = { topic: 'finanzen', title: 'T', quiz: [{ q: 'A?', options: ['a', 'b'], answer: 0 }] };
+  const good = { topic: 'finanzen', title: 'T', sources: [{ title: 'Bundesbank, Monatsbericht' }], quiz: [{ q: 'A?', options: ['a', 'b'], answer: 0 }] };
   it('unvollständiges JSON meldet fehlende Klammer statt Feldfehler', () => {
     const txt = JSON.stringify(good, null, 2).slice(0, -2); // letzte } weg
     const r = parseImport(txt);
@@ -172,5 +180,94 @@ describe('Import: Fehlermeldungen', () => {
   it('nennt Zeile bei Syntaxfehler', () => {
     const r = parseImport('{\n "topic": "x",\n "title": "y"\n "quiz": []\n}');
     expect(r.fatal).toMatch(/Zeile \d/);
+  });
+});
+
+describe('Import: Quellen, unsicher, Praxisaufgabe', () => {
+  const base = { topic: 'finanzen', title: 'T', quiz: [{ q: 'A?', options: ['a', 'b'], answer: 0 }] };
+  it('Paket ohne Quellen wird abgelehnt, nicht nur gewarnt', () => {
+    const r = parseImport(JSON.stringify(base)).results[0];
+    expect(r.ok).toBe(false);
+    expect(r.errors.join(' ')).toMatch(/Keine Quellen/);
+  });
+  it('leere oder Platzhalter-Quellen werden abgelehnt', () => {
+    expect(parseImport(JSON.stringify({ ...base, sources: [] })).results[0].ok).toBe(false);
+    const r = parseImport(JSON.stringify({ ...base, sources: [{ title: 'Platzhalter-Inhalt, nicht quellengeprüft' }] })).results[0];
+    expect(r.ok).toBe(false);
+    expect(r.errors.join(' ')).toMatch(/Keine echten Quellen/);
+  });
+  it('mit echter Quelle wird es angenommen und "placeholder" nicht übernommen', () => {
+    const r = parseImport(JSON.stringify({ ...base, placeholder: true, sources: [{ title: 'EZB, Geldpolitik', url: 'https://www.ecb.europa.eu' }] })).results[0];
+    expect(r.ok).toBe(true);
+    expect(r.pack.placeholder).toBe(false);
+  });
+  it('unsichere Aussagen und Praxisaufgabe bleiben erhalten', () => {
+    const j = { ...base, sources: [{ title: 'S' }], uncertain: ['Das ist nicht sicher belegt.'], explain: [{ heading: 'H', text: 'T', refs: ['S'], uncertain: true }], flashcards: [{ q: 'q', a: 'a', uncertain: true }], practice: { task: 'Tu es', how: 'So', check: 'Fertig' } };
+    const p = parseImport(JSON.stringify(j)).results[0].pack;
+    expect(p.uncertain).toEqual(['Das ist nicht sicher belegt.']);
+    expect(p.explain[0].uncertain).toBe(true);
+    expect(p.flashcards[0].uncertain).toBe(true);
+    expect(p.practice).toEqual({ task: 'Tu es', how: 'So', check: 'Fertig' });
+  });
+  it('Text wird unverändert übernommen, nicht gekürzt', () => {
+    const long = 'x'.repeat(5000);
+    const p = parseImport(JSON.stringify({ ...base, sources: [{ title: 'S' }], explain: [{ heading: 'H', text: long }] })).results[0].pack;
+    expect(p.explain[0].text).toBe(long);
+  });
+  it('unvollständige Quiz-Frage lässt das Paket scheitern statt sie stillschweigend wegzulassen', () => {
+    const r = parseImport(JSON.stringify({ ...base, sources: [{ title: 'S' }], quiz: [{ q: 'A?', options: ['a'], answer: 0 }] })).results[0];
+    expect(r.ok).toBe(false);
+  });
+  it('JSON ohne öffnende geschweifte Klammer wird klar benannt', () => {
+    const txt = '"topic": "finanzen",\n"title": "T",\n"sources": [{"title":"S"}]\n}';
+    const r = parseImport(txt);
+    expect(r.fatal).toMatch(/öffnende geschweifte Klammer/);
+    expect(r.fatal).toMatch(/keine Feldfehler/);
+    expect(r.results).toEqual([]);
+  });
+  it('Markdown mit Praxisaufgabe und unsicher', () => {
+    const md = '# T\ntopic: finanzen\n\n## Karteikarten\n- a? => b\n\n## Praxisaufgabe\nAufgabe: Mach es\nSo geht\'s: So\nCheck: Gut\n\n## Unsicher\n- Vielleicht\n\n## Quellen\n- Bundesbank | https://www.bundesbank.de';
+    const p = parseImport(md).results[0];
+    expect(p.ok).toBe(true);
+    expect(p.pack.practice.task).toBe('Mach es');
+    expect(p.pack.uncertain).toEqual(['Vielleicht']);
+  });
+});
+
+import { PROMPT_TEMPLATE } from '../src/data/texts.js';
+import { PACK_SPEC } from '../src/engine/importer.js';
+describe('Neue Themen und Auftrag', () => {
+  it('vier neue Themen mit Platzhalter-Paketen und Praxisaufgabe', () => {
+    for (const id of ['gentleman', 'rhetorik', 'selbstorganisation', 'kleidung']) {
+      expect(DEFAULT_TOPICS.find((t) => t.id === id), id).toBeDefined();
+      const ps = packsFor(id, BUILTIN_PACKS);
+      expect(ps.length, id).toBeGreaterThan(0);
+      for (const p of ps) {
+        expect(p.placeholder).toBe(true);
+        expect(p.practice?.task, p.id).toBeTruthy();
+        expect(p.flashcards.length).toBeGreaterThanOrEqual(3);
+        expect(p.quiz.length).toBeGreaterThanOrEqual(2);
+      }
+    }
+    expect(packsFor('gentleman', BUILTIN_PACKS).length).toBe(2);
+  });
+  it('Zukunftswissen umfasst weiter Schule und Finanzen, nicht die neuen Themen', () => {
+    const future = DEFAULT_TOPICS.filter((t) => t.future).map((t) => t.id);
+    expect(future).toEqual(expect.arrayContaining(['schule', 'finanzen']));
+    expect(future).not.toContain('gentleman');
+  });
+  it('alle eingebauten Pakete haben eine Praxisaufgabe', () => {
+    for (const p of BUILTIN_PACKS) expect(p.practice?.task, p.id).toBeTruthy();
+  });
+  it('der Auftrag schreibt Quellen, "unsicher" und das Feld sources vor', () => {
+    const t = PROMPT_TEMPLATE('Test', PACK_SPEC);
+    expect(t).toMatch(/Jede Aussage hat eine Quelle/);
+    expect(t).toMatch(/Gesetze mit Paragraph/);
+    expect(t).toMatch(/Fachbücher mit Autor und Ausgabe/);
+    expect(t).toMatch(/Bundesbank, EZB, Bundesregierung/);
+    expect(t).toMatch(/Keine Blogs ohne Autor/);
+    expect(t).toMatch(/"uncertain": true/);
+    expect(t).toMatch(/"sources" ist Pflicht/);
+    expect(t).toMatch(/lehnt ein Paket ohne echte Quellen ab/);
   });
 });

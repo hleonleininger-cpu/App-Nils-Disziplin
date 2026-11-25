@@ -1,0 +1,161 @@
+// Platzhalter-Pakete für die neuen Themen. Nicht quellengeprüft. Sie werden in der App sichtbar als "Platzhalter" gezeigt,
+// bis ein echtes Paket (mit Quellen) sie ersetzt.
+const note = { title: 'Platzhalter-Inhalt von Claude, nicht quellengeprüft' };
+const P = (o) => ({ format: 'disziplin-pack/1', level: 1, placeholder: true, sources: [note], uncertain: [], ...o });
+
+export const NEW_PACKS = [
+  P({
+    id: 'gentleman-auftreten', topic: 'gentleman', title: 'Auftreten, Haltung, Händedruck',
+    summary: 'Ein ruhiges, sicheres Auftreten besteht aus Haltung, Blickkontakt, einem sauberen Händedruck und dem Namen deines Gegenübers. Es muss nicht laut sein, es muss echt sein.',
+    uncertain: ['Die oft genannte Aussage, der erste Eindruck stehe innerhalb weniger Sekunden fest, ist je nach Studie unterschiedlich gut belegt.'],
+    explain: [
+      { heading: 'Haltung und Präsenz', text: 'Steh aufrecht, Schultern locker, Blick geradeaus, Hände sichtbar und ruhig. Eine offene Haltung hilft dir selbst und wirkt zugewandt. Körpersprache ersetzt keine Substanz: Sie unterstützt, was du tust und sagst.', uncertain: false },
+      { heading: 'Begrüßung', text: 'Blickkontakt, ein kurzes Lächeln, ein fester, aber nicht zerquetschender Händedruck (zwei, drei Sekunden). Sag deinen Namen und wiederhole den Namen des anderen einmal, das hilft beim Merken.', uncertain: false },
+      { heading: 'Selbstvertrauen ohne Show', text: 'Wer sicher ist, muss nichts beweisen. Sprich etwas langsamer, mach Pausen, höre zu, gib Fehler zu und prahle nicht. Verlässlichkeit (halten, was du sagst) wirkt stärker als jede Pose.', uncertain: false },
+    ],
+    terms: [
+      { term: 'Präsenz', def: 'Die Wirkung, dass jemand mit voller Aufmerksamkeit anwesend ist.' },
+      { term: 'Blickkontakt', def: 'Dem Gegenüber kurz und freundlich in die Augen sehen, ohne zu starren.' },
+      { term: 'Understatement', def: 'Zurückhaltung statt Angeberei.' },
+      { term: 'Verlässlichkeit', def: 'Tun, was du angekündigt hast.' },
+    ],
+    flashcards: [
+      { q: 'Woran erkennt man einen guten Händedruck?', a: 'Fest, kurz, trocken, mit Blickkontakt. Nicht zerquetschend und nicht schlaff.' },
+      { q: 'Wie merkst du dir Namen besser?', a: 'Den Namen direkt wiederholen und im Gespräch einmal benutzen.' },
+      { q: 'Was bedeutet Selbstvertrauen ohne Show?', a: 'Ruhig auftreten, zuhören, Fehler zugeben, nichts beweisen müssen.' },
+      { q: 'Was ersetzt keine Haltung?', a: 'Substanz: Leistung und Verlässlichkeit.' },
+    ],
+    quiz: [
+      { q: 'Was gehört zu einer guten Begrüßung?', options: ['Wegsehen und nuscheln', 'Blickkontakt, fester kurzer Händedruck, Namen sagen', 'Möglichst laut sprechen', 'Hände in den Taschen'], answer: 1, explain: 'Blickkontakt, Händedruck und Name sind die Grundlage.' },
+      { q: 'Wodurch wirkt Selbstvertrauen echt?', options: ['Durch lautes Reden', 'Durch Ruhe, Zuhören und Verlässlichkeit', 'Durch Angeben', 'Durch möglichst viele Witze'], answer: 1, explain: 'Echte Sicherheit braucht keine Show.' },
+      { q: 'Du hast den Namen sofort vergessen. Was ist am besten?', options: ['Gar nichts sagen und hoffen', 'Höflich noch einmal nach dem Namen fragen', 'Einen falschen Namen raten', 'Das Gespräch beenden'], answer: 1, explain: 'Nachfragen zeigt Interesse und ist besser als falsch raten.' },
+    ],
+    questions: [{ q: 'Beschreibe, wie du dich bei einer Begrüßung verhältst und warum.', keyPoints: ['Blickkontakt', 'Händedruck', 'Namen', 'aufrecht', 'ruhig'] }],
+    teachBack: { prompt: 'Erkläre einem Freund, wie man souverän auftritt, ohne anzugeben.', mustInclude: ['Haltung', 'Blickkontakt', 'Verlässlichkeit'], followUps: ['Was machst du, wenn du nervös bist?', 'Worin liegt der Unterschied zwischen Selbstvertrauen und Angeberei?'] },
+    practice: { task: 'Begrüße heute zwei Menschen bewusst: Blickkontakt, Name, ruhige Stimme.', how: 'Wähle zwei Situationen (Schule, Handball, Laden). Sag deinen Namen, wiederhole den Namen des anderen einmal und stelle eine offene Frage.', check: 'Du hast beide Namen noch am Abend parat und notierst, wie das Gespräch lief.' },
+    scenarios: [{ situation: 'Du triffst die Eltern einer Freundin zum ersten Mal. Wie begrüßt du sie?', options: [{ text: 'Du murmelst ein Hallo und schaust aufs Handy.', feedback: 'Das wirkt desinteressiert.' }, { text: 'Blickkontakt, Händedruck, Name, ein freundlicher Satz.', feedback: 'Genau so wirkt es höflich und sicher.', best: true }, { text: 'Du erzählst sofort, was du alles erreicht hast.', feedback: 'Das wirkt nach Show.' }] }],
+    cases: [],
+  }),
+  P({
+    id: 'gentleman-manieren', topic: 'gentleman', level: 2, title: 'Manieren und Gesprächsführung',
+    summary: 'Manieren sind Rücksicht, die man sieht: pünktlich sein, zuhören, Handy weg, am Tisch aufmerksam sein. Gute Gesprächsführung besteht aus echten Fragen und aus Zuhören.',
+    explain: [
+      { heading: 'Grundregeln im Alltag', text: 'Sei pünktlich oder sag früh Bescheid. Sag Bitte und Danke. Lass andere ausreden. Halt Türen auf, biete Hilfe an. Schalte das Handy weg, wenn du mit jemandem sprichst.', uncertain: false },
+      { heading: 'Am Tisch', text: 'Warte, bis alle ihr Essen haben oder der Gastgeber beginnt. Serviette auf den Schoß. Besteck von außen nach innen. Nicht mit vollem Mund sprechen, Ellbogen nicht aufstützen, Handy bleibt in der Tasche.', uncertain: false },
+      { heading: 'Gespräche führen', text: 'Stelle offene Fragen (Wie, Was, Erzähl mir mehr), höre zu, paraphrasiere. Sprich nicht schlecht über Abwesende. Wenn du etwas ablehnst, tu es freundlich und klar. Alles ehrlich gemeint, nicht als Technik.', uncertain: false },
+    ],
+    terms: [
+      { term: 'Etikette', def: 'Regeln für höfliches Verhalten in bestimmten Situationen.' },
+      { term: 'offene Frage', def: 'Eine Frage, die nicht mit Ja oder Nein beantwortet wird.' },
+      { term: 'Rücksicht', def: 'Verhalten, das auf die Lage der anderen achtet.' },
+    ],
+    flashcards: [
+      { q: 'Wie liegt Besteck am Tisch, in welcher Reihenfolge benutzt du es?', a: 'Von außen nach innen.' },
+      { q: 'Was tust du mit dem Handy, wenn du jemandem zuhörst?', a: 'Wegstecken, nicht auf den Tisch legen.' },
+      { q: 'Wann fängst du an zu essen?', a: 'Wenn alle ihr Essen haben oder der Gastgeber beginnt.' },
+    ],
+    quiz: [
+      { q: 'Welche Frage ist offen?', options: ['Hat es geschmeckt?', 'Was hat dir am Besten geschmeckt?', 'Warst du da?', 'Kommst du mit?'], answer: 1, explain: '"Was" lädt zum Erzählen ein.' },
+      { q: 'Du kommst 15 Minuten zu spät. Was ist richtig?', options: ['Nichts sagen', 'Früh Bescheid sagen und dich entschuldigen', 'Dem anderen die Schuld geben', 'Gar nicht kommen'], answer: 1, explain: 'Früh Bescheid geben zeigt Respekt vor der Zeit des anderen.' },
+    ],
+    questions: [{ q: 'Wie gestaltest du ein gutes Gespräch? Nenne drei Dinge, die du tust.', keyPoints: ['offene Fragen', 'zuhören', 'Handy', 'ausreden lassen', 'Interesse'] }],
+    teachBack: { prompt: 'Erkläre einem Freund, welche Manieren im Alltag und am Tisch wirklich zählen und warum.', mustInclude: ['Rücksicht', 'offene Fragen', 'pünktlich'], followUps: ['Was tust du, wenn dir ein Fehler passiert?'] },
+    practice: { task: 'Beim nächsten Essen: Handy komplett weg und zwei offene Fragen stellen.', how: 'Leg das Handy außer Sichtweite, stelle zwei Fragen mit "Wie" oder "Was" und höre aufmerksam zu.', check: 'Du kannst danach drei Dinge nennen, die du neu über die Person erfahren hast.' },
+    scenarios: [{ situation: 'Beim Essen mit der Familie vibriert dein Handy mehrfach. Was machst du?', options: [{ text: 'Du antwortest sofort unter dem Tisch.', feedback: 'Das nehmen andere als Respektlosigkeit wahr.' }, { text: 'Du lässt es in der Tasche und schaust später in Ruhe.', feedback: 'Das zeigt Aufmerksamkeit und Rücksicht.', best: true }, { text: 'Du legst es neben den Teller und schaust ab und zu.', feedback: 'Auch das lenkt ab.' }] }],
+    cases: [],
+  }),
+  P({
+    id: 'rhetorik-grundlagen', topic: 'rhetorik', title: 'Frei sprechen: Aufbau, Stimme, Lampenfieber',
+    summary: 'Wer klar spricht, wird verstanden und ernst genommen. Das braucht einen einfachen Aufbau, eine ruhige Stimme mit Pausen und regelmäßiges, lautes Üben.',
+    explain: [
+      { heading: 'Aufbau einer Rede', text: 'Einleitung (Aufmerksamkeit und Thema), Hauptteil (höchstens drei Kernpunkte), Schluss (Zusammenfassung und klarer Wunsch an die Zuhörer). Wenige Punkte bleiben hängen, viele nicht.', uncertain: false },
+      { heading: 'Spontan antworten mit PREP', text: 'Point (Kernaussage), Reason (Grund), Example (Beispiel), Point (Kernaussage wiederholen). Das gibt dir bei jeder Frage ein Gerüst, auch wenn du nicht vorbereitet bist.', uncertain: false },
+      { heading: 'Stimme und Füllwörter', text: 'Sprich langsamer, als du denkst, und mach Pausen. Eine Pause wirkt souveräner als "ähm". Betone die wichtigen Wörter, stehe fest und atme ruhig in den Bauch.', uncertain: false },
+      { heading: 'Lampenfieber', text: 'Aufregung ist normal und lässt sich nutzen. Hilfreich sind gute Vorbereitung, die ersten zwei Sätze auswendig, lautes Üben und ein Blick zu freundlichen Gesichtern. Die Antike nannte die Überzeugungsmittel Ethos (Glaubwürdigkeit), Pathos (Gefühl) und Logos (Argument).', uncertain: false },
+    ],
+    terms: [
+      { term: 'PREP', def: 'Point, Reason, Example, Point: Gerüst für kurze Antworten.' },
+      { term: 'Ethos', def: 'Überzeugung durch Glaubwürdigkeit des Redners.' },
+      { term: 'Pathos', def: 'Überzeugung durch Gefühle.' },
+      { term: 'Logos', def: 'Überzeugung durch Argumente und Logik.' },
+      { term: 'Füllwort', def: 'Wörter wie "ähm" oder "also", die nichts sagen.' },
+    ],
+    flashcards: [
+      { q: 'Wofür steht PREP?', a: 'Point, Reason, Example, Point.' },
+      { q: 'Wie viele Kernpunkte sollte ein Hauptteil höchstens haben?', a: 'Etwa drei.' },
+      { q: 'Was hilft statt "ähm"?', a: 'Eine kurze Pause.' },
+      { q: 'Nenne die drei Überzeugungsmittel der antiken Rhetorik.', a: 'Ethos, Pathos, Logos.' },
+    ],
+    quiz: [
+      { q: 'Wie beginnst du eine spontane Antwort mit PREP?', options: ['Mit einem Witz', 'Mit der Kernaussage', 'Mit einer Entschuldigung', 'Mit einem Beispiel'], answer: 1, explain: 'Zuerst der Point, die Kernaussage.' },
+      { q: 'Was wirkt souveräner als "ähm"?', options: ['Schneller sprechen', 'Eine kurze Pause', 'Leiser werden', 'Das Thema wechseln'], answer: 1, explain: 'Pausen geben dir und den Zuhörern Zeit.' },
+      { q: 'Ethos bedeutet …', options: ['Gefühl', 'Glaubwürdigkeit', 'Argument', 'Lautstärke'], answer: 1, explain: 'Ethos ist die Glaubwürdigkeit des Redners.' },
+    ],
+    questions: [{ q: 'Wie baust du eine kurze Rede auf?', keyPoints: ['Einleitung', 'Hauptteil', 'Schluss', 'drei', 'Kernpunkte'] }],
+    teachBack: { prompt: 'Erkläre einem Freund in 3 Minuten, wie man frei und klar spricht und wie man mit Lampenfieber umgeht.', mustInclude: ['PREP', 'Pause', 'Aufbau'], followUps: ['Was machst du, wenn du den Faden verlierst?', 'Wie bereitest du dich auf 2 Minuten Sprechzeit vor?'] },
+    practice: { task: 'Beantworte heute eine Frage 60 Sekunden lang laut mit PREP und nimm sie mit dem Handy auf.', how: 'Wähle eine Frage (zum Beispiel "Warum ist Pünktlichkeit wichtig?"), sprich 60 Sekunden mit Point, Reason, Example, Point und höre die Aufnahme danach an.', check: 'Du hast die Aufnahme angehört und notierst eine Stärke und eine Sache für morgen.' },
+    scenarios: [{ situation: 'Im Unterricht wirst du spontan nach deiner Meinung gefragt und weißt nicht viel. Was tust du?', options: [{ text: 'Du sagst "keine Ahnung" und schaust weg.', feedback: 'Das verschenkt die Chance, dich zu zeigen.' }, { text: 'Du nennst eine Kernaussage, einen Grund und ein Beispiel (PREP).', feedback: 'Das gibt dir ein Gerüst und wirkt souverän.', best: true }, { text: 'Du redest drei Minuten ohne Struktur.', feedback: 'Ohne Aufbau verlierst du die Zuhörer.' }] }],
+    cases: [],
+  }),
+  P({
+    id: 'selbstorganisation-grundlagen', topic: 'selbstorganisation', title: 'Prioritäten, Wochenplan, Gewohnheiten',
+    summary: 'Gute Selbstorganisation heißt: das Wichtige zuerst, feste Zeitblöcke, ein Plan für die Woche und konkrete Wenn-dann-Regeln für den Moment, in dem es schwerfällt.',
+    explain: [
+      { heading: 'Wichtig und dringend', text: 'Die Eisenhower-Matrix teilt Aufgaben nach wichtig und dringend: sofort tun (wichtig und dringend), terminieren (wichtig, nicht dringend), abgeben (dringend, nicht wichtig), streichen (weder noch). Der größte Gewinn liegt bei "wichtig, nicht dringend", zum Beispiel Lernen, Sport, Planung.', uncertain: false },
+      { heading: 'Zeitblöcke und Wochenplan', text: 'Trag Aufgaben mit Uhrzeit in einen Plan ein, statt sie nur auf eine Liste zu schreiben. Einmal pro Woche (zum Beispiel Sonntagabend) planst du die nächsten sieben Tage. Plane Puffer ein, denn vieles dauert länger als gedacht.', uncertain: false },
+      { heading: 'Fokus: Pomodoro und Wenn-dann', text: 'Bei der Pomodoro-Technik arbeitest du 25 Minuten konzentriert und machst 5 Minuten Pause. Wenn-dann-Pläne ("Wenn ich nach der Schule nach Hause komme, setze ich mich sofort 25 Minuten an die Aufgabe") machen den Start leichter, weil die Entscheidung schon getroffen ist.', uncertain: false },
+    ],
+    terms: [
+      { term: 'Eisenhower-Matrix', def: 'Vierfeldertafel nach wichtig und dringend.' },
+      { term: 'Zeitblock', def: 'Fester Zeitraum für eine bestimmte Aufgabe.' },
+      { term: 'Pomodoro', def: '25 Minuten Arbeit, 5 Minuten Pause.' },
+      { term: 'Wenn-dann-Plan', def: 'Vorab festgelegte Regel: Wenn Situation X, dann Handlung Y.' },
+      { term: 'Puffer', def: 'Eingeplante Reservezeit.' },
+    ],
+    flashcards: [
+      { q: 'Welche Aufgaben bringen den größten langfristigen Gewinn in der Eisenhower-Matrix?', a: 'Wichtig, aber nicht dringend.' },
+      { q: 'Wie lange dauert eine Pomodoro-Runde?', a: '25 Minuten Arbeit und 5 Minuten Pause.' },
+      { q: 'Wozu dient ein Wenn-dann-Plan?', a: 'Er trifft die Entscheidung vorab und erleichtert den Start.' },
+    ],
+    quiz: [
+      { q: 'Lernen für eine Klausur in drei Wochen ist in der Matrix …', options: ['wichtig und dringend', 'wichtig, nicht dringend', 'dringend, nicht wichtig', 'weder noch'], answer: 1, explain: 'Wichtig, aber noch nicht dringend: ideal zum Terminieren.' },
+      { q: 'Was ist ein guter Wenn-dann-Plan?', options: ['Ich versuche, mehr zu lernen.', 'Wenn ich nach Hause komme, setze ich mich sofort 25 Minuten an die Aufgabe.', 'Ich lerne irgendwann diese Woche.', 'Hoffentlich klappt es.'], answer: 1, explain: 'Konkreter Auslöser, konkrete Handlung.' },
+    ],
+    questions: [{ q: 'Wie planst du deine Woche, und warum mit Uhrzeiten?', keyPoints: ['Zeitblock', 'Wochenplan', 'Puffer', 'Prioritäten', 'Uhrzeit'] }],
+    teachBack: { prompt: 'Erkläre einem Freund, wie du dich organisierst: Prioritäten, Wochenplan und Wenn-dann-Pläne.', mustInclude: ['wichtig', 'Zeitblock', 'Wenn-dann'], followUps: ['Was machst du, wenn der Plan platzt?', 'Wie entscheidest du, was du streichst?'] },
+    practice: { task: 'Schreibe heute Abend die drei wichtigsten Aufgaben für morgen mit Uhrzeit auf.', how: 'Nimm Zettel oder Notiz-App, trage drei Aufgaben mit Start und Dauer ein und formuliere für die schwerste einen Wenn-dann-Plan.', check: 'Morgen früh steht der Plan, und du hast die erste Aufgabe zur geplanten Zeit begonnen.' },
+    scenarios: [{ situation: 'Du hast heute acht Aufgaben, aber nur Zeit für fünf. Was machst du?', options: [{ text: 'Du fängst bei den einfachsten an.', feedback: 'So bleibt das Wichtige liegen.' }, { text: 'Du ordnest nach wichtig und dringend und streichst oder verschiebst den Rest.', feedback: 'So setzt du die Zeit für das Wichtige ein.', best: true }, { text: 'Du machst alle halb.', feedback: 'Halbfertiges bringt wenig.' }] }],
+    cases: [],
+  }),
+  P({
+    id: 'kleidung-grundlagen', topic: 'kleidung', title: 'Passform, Anlässe, Grundgarderobe',
+    summary: 'Gut gekleidet heißt nicht teuer, sondern passend: gute Passform, zum Anlass passende Kleidung, gepflegte Stücke und eine kleine Grundgarderobe, die sich kombinieren lässt.',
+    uncertain: ['Welche Farben "am besten wirken", hängt vom Typ und vom Anlass ab. Dafür gibt es keine verlässliche allgemeine Regel.'],
+    explain: [
+      { heading: 'Passform zuerst', text: 'Passform schlägt Marke. Schultern: die Naht sitzt an der Schulterkante. Ärmel: enden am Handgelenk. Hosenlänge: nicht über dem Schuh stauchen. Zu enge oder zu weite Kleidung wirkt unsicher. Ein Schneider kann vieles günstig anpassen.', uncertain: false },
+      { heading: 'Anlass und Dresscode', text: 'Frage dich: Wo gehe ich hin, und was tragen die anderen? Casual (Jeans, T-Shirt), Smart casual (dunkle Jeans oder Chino, Hemd, saubere Schuhe), Business casual (Hemd, Chino oder Stoffhose, Sakko optional), Business formal (Anzug, Hemd, Krawatte). Lieber einen Hauch zu gut als zu nachlässig.', uncertain: false },
+      { heading: 'Grundgarderobe und Pflege', text: 'Wenige gute, kombinierbare Teile in ruhigen Farben (Marine, Grau, Weiß, Schwarz, Beige): zwei bis drei Hemden, eine dunkle Jeans, eine Chino, ein Sakko, saubere Lederschuhe und weiße Sneaker. Pflege gehört dazu: Schuhe putzen, Kleidung bügeln, Flecken sofort behandeln.', uncertain: false },
+    ],
+    terms: [
+      { term: 'Passform', def: 'Wie gut ein Kleidungsstück an den Körper angepasst ist.' },
+      { term: 'Dresscode', def: 'Erwartete Kleidung für einen Anlass.' },
+      { term: 'Smart casual', def: 'Gepflegt-lässig: etwa Chino, Hemd, saubere Schuhe.' },
+      { term: 'Grundgarderobe', def: 'Kleine Auswahl gut kombinierbarer Basics.' },
+    ],
+    flashcards: [
+      { q: 'Wo sitzt die Schulternaht eines gut passenden Hemds?', a: 'An der Schulterkante.' },
+      { q: 'Was bedeutet Smart casual?', a: 'Gepflegt-lässig, zum Beispiel Chino, Hemd und saubere Schuhe.' },
+      { q: 'Was zählt mehr: Marke oder Passform?', a: 'Passform.' },
+      { q: 'Welche Pflege gehört zu jedem Outfit?', a: 'Saubere Schuhe, gebügelte Kleidung, keine Flecken.' },
+    ],
+    quiz: [
+      { q: 'Du gehst zu einem Vorstellungsgespräch im Büro. Was passt am ehesten?', options: ['Trainingsjacke und Sneaker', 'Hemd, Stoffhose, gepflegte Schuhe', 'Badeshorts', 'Fußballtrikot'], answer: 1, explain: 'Business casual oder formal, je nach Firma.' },
+      { q: 'Was verbessert fast jedes Outfit am meisten?', options: ['Eine teure Marke', 'Gute Passform', 'Viele Farben', 'Möglichst auffällige Muster'], answer: 1, explain: 'Passform schlägt Marke.' },
+    ],
+    questions: [{ q: 'Wie wählst du Kleidung für einen Anlass aus?', keyPoints: ['Anlass', 'Dresscode', 'Passform', 'Pflege', 'sauber'] }],
+    teachBack: { prompt: 'Erkläre einem Freund, wie man sich passend und gepflegt kleidet, ohne viel Geld auszugeben.', mustInclude: ['Passform', 'Anlass', 'Grundgarderobe'], followUps: ['Wie baust du eine kleine Grundgarderobe auf?', 'Woran erkennst du, ob etwas gut sitzt?'] },
+    practice: { task: 'Prüfe heute drei Kleidungsstücke im Schrank auf Passform und Pflege.', how: 'Zieh Hemd, Hose und Schuhe an, sieh dir Schulter, Ärmel, Länge und Sauberkeit an und notiere, was du ändern, pflegen oder aussortieren würdest.', check: 'Du hast pro Stück eine Entscheidung: behalten, pflegen oder ersetzen.' },
+    scenarios: [{ situation: 'Du bist zu einer Geburtstagsfeier im Restaurant eingeladen, Dresscode unbekannt. Was ziehst du an?', options: [{ text: 'Trainingsanzug.', feedback: 'Das passt in kaum ein Restaurant.' }, { text: 'Dunkle Jeans oder Chino, ein gepflegtes Hemd, saubere Schuhe.', feedback: 'Smart casual passt fast überall.', best: true }, { text: 'Anzug mit Krawatte.', feedback: 'Wahrscheinlich zu viel, ohne den Anlass zu kennen.' }] }],
+    cases: [],
+  }),
+];

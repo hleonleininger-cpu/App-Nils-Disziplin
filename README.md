@@ -59,9 +59,9 @@ Auf Mac/PC reicht der Browser. In Chrome und Edge gibt es oben rechts ein Instal
 
 Der Button **Fokus starten** auf der Lern-Karte ruft den Kurzbefehl `shortcuts://run-shortcut?name=Fokus%20Lernen` auf. Anlegen:
 
-1. *Einstellungen > Fokus > +* einen Fokus "Lernen" erstellen. Dort festlegen, welche Personen und Apps Meldungen schicken dürfen (am besten: keine) und optional, welche Homescreen-Seiten sichtbar sind.
-2. *Kurzbefehle*-App öffnen, **+**, Aktion **Fokus festlegen** hinzufügen: Fokus *Lernen*, *Einschalten*, *Bis ich ihn ausschalte*.
-3. Den Kurzbefehl genau **Fokus Lernen** nennen. Anderen Namen? Dann unter *Mehr > Fokus und Benachrichtigungen* den Namen anpassen.
+1. *Einstellungen > Fokus > +* einen Fokus "Disziplin" erstellen. Dort festlegen, welche Personen und Apps Meldungen schicken dürfen (am besten: keine) und optional, welche Homescreen-Seiten sichtbar sind.
+2. *Kurzbefehle*-App öffnen, **+**, Aktion **Fokus festlegen** hinzufügen: Fokus *Disziplin*, *Einschalten*, *Bis ich ihn ausschalte*.
+3. Den Kurzbefehl genau **Fokus Disziplin** nennen. Anderen Namen? Dann unter *Mehr > Fokus und Benachrichtigungen* den Namen anpassen.
 4. Test: In Safari `shortcuts://run-shortcut?name=Fokus%20Lernen` eintippen.
 
 Ehrlich dazu: Ein Fokus stellt Meldungen ab und kann Homescreen-Seiten ausblenden. Er **sperrt keine Apps**. Eine echte App-Sperre geht auf dem iPhone nur mit einer nativen App (Screen-Time-API). Ich habe den Aufruf nicht auf einem echten iPhone ausprobieren können.
@@ -115,30 +115,44 @@ Die Plan-Engine (`engine/plan.js`) ist eine reine Funktion: Stundenplan, feste T
 
 ## Inhaltsformat (Pakete von Claude)
 
-Unter *Lernen > Importieren* fügst du ein Paket als **JSON** oder **Markdown** ein. Die App prüft es, zeigt Fehler und Warnungen und legt es erst nach Bestätigung ab. Der Knopf *Auftrag kopieren* erzeugt den fertigen Text für Claude Code, inklusive Format, Hinweis auf verlässliche Quellen und bereits vorhandener Lektionen. Am Vorabend zeigt der Abendcheck das Thema für morgen.
+So läuft es: Unter *Lernen* (bei jedem Thema und unter *Importieren*) erzeugt die App einen **Auftrag zum Kopieren**. Du gibst ihn Claude im Chat, Claude liefert ein Paket, du importierst es unter *Lernen > Importieren* (JSON oder Markdown, einfügen oder Datei). Die App übernimmt den Inhalt **unverändert** (nur Leerraum am Rand entfällt). Sie kürzt nichts und lässt nichts stillschweigend weg: Ist etwas fehlerhaft, lehnt sie das Paket ab und sagt genau, was.
 
-Ein Paket (JSON) enthält: `topic`, `title`, `level`, `summary`, `sources`, `explain` (Abschnitte), `terms` (Fachbegriffe), `flashcards`, `quiz` (Auswahl mit `answer`-Index), `questions` (offene Fragen mit Stichwörtern `keyPoints`), `teachBack` (Aufgabe, Pflichtbegriffe, Nachfragen), `scenarios`, `cases` (Fallrätsel und Detektiv). Das vollständige Format steht in der App (aufklappbar) und in `src/engine/importer.js`. Markdown-Variante: Überschriften `## Erklärung`, `## Fachbegriffe`, `## Karteikarten`, `## Quiz`, `## Fragen`, `## Erkläre es einem Freund`, `## Quellen`. Mehrere Pakete trennt eine Zeile `---`.
+**Der Auftrag schreibt Claude vor:**
+- Jede Aussage hat eine Quelle: Gesetze mit Paragraph, Fachbücher mit Autor und Ausgabe, offizielle Seiten (Bundesbank, EZB, Bundesregierung, Statistisches Bundesamt, Behörden, Hochschulen). Keine Blogs ohne Autor.
+- Was nicht belegbar ist, wird als „unsicher“ markiert (`"uncertain": true` an der Stelle und in der Liste `uncertain`). Keine erfundenen Quellen, Paragraphen oder Zahlen.
+- Das Feld `sources` ist immer da. Die App ordnet Erklärabschnitten ihre Quellen über `refs` zu.
+- Eine Praxisaufgabe (`practice`) ist Pflicht.
 
-Mitgeliefert sind 11 **Platzhalter-Pakete** (eines bis zwei pro Thema). Sie sind **nicht quellengeprüft** und dienen nur zum Testen. Ersetzen, sobald echte Pakete da sind.
+**Was der Import prüft:** Ein Paket **ohne Quellen wird abgelehnt**, nicht nur gewarnt. Auch ein Paket, dessen einzige „Quelle“ ein Platzhalter ist, wird abgelehnt. Unvollständige Quizfragen, Szenarien oder Fälle führen zur Ablehnung. Zu lange Texte (über 20.000 Zeichen) werden gemeldet, nicht gekürzt. Fehlt am Anfang die öffnende geschweifte Klammer `{`, meldet die App „JSON unvollständig oder fehlerhaft“ mit Zeile oder fehlender Klammer, statt irreführend „topic fehlt“. Code-Zäune und Einleitungstext um das JSON stören nicht.
 
-Menschen lesen und Gesprächsführung sind ausschließlich als ehrliche Kommunikation angelegt (Zuhören, Fragen, Körpersprache einordnen, Grenzen kennen). Keine Anleitungen zum Manipulieren.
+**In der Lektion:** Unsichere Aussagen stehen mit einem gelben Kennzeichen „unsicher“ im Text, in einem Kasten „Unsichere Aussagen“ und an einzelnen Karten und Fragen („unsicher belegt“). Die Quellen stehen unter jedem Abschnitt und am Ende.
+
+Ein Paket (JSON) enthält: `topic`, `title`, `level`, `summary`, `sources`, `uncertain`, `explain` (mit `refs`), `terms`, `flashcards`, `quiz`, `questions`, `teachBack`, `practice` (Praxisaufgabe: `task`, `how`, `check`), `scenarios`, `cases`. Das vollständige Format steht in der App (aufklappbar) und in `src/engine/importer.js`. Markdown-Variante mit Abschnitten `## Erklärung`, `## Fachbegriffe`, `## Karteikarten`, `## Quiz`, `## Fragen`, `## Erkläre es einem Freund`, `## Praxisaufgabe`, `## Unsicher`, `## Quellen`. Mehrere Pakete trennt eine Zeile `---`.
+
+**Themen:** Finanzen & Wirtschaft, Investieren, Programmieren, Verhandeln & Gesprächsführung, Menschen lesen, Sherlock-Denken, Bücher, Schule, Selbstverteidigung und neu **Gentleman & Charme**, **Rhetorik & freies Sprechen**, **Selbstorganisation & Zeitmanagement**, **Kleidung & Stil**. Jedes Thema hat Pakete mit Erklärung, Karten, Quiz und einer Praxisaufgabe am Ende der Lektion. Zukunftswissen umfasst weiter Schule und Finanzen.
+
+**Platzhalter:** Die 16 mitgelieferten Pakete sind Platzhalter und nicht quellengeprüft. Sie sind sichtbar gekennzeichnet (Kennzeichen „Platzhalter“ bei jedem Thema und in jeder Lektion), bis ein importiertes Paket mit Quellen sie ersetzt. Ein Paket mit derselben ID ersetzt das Platzhalter-Paket.
+
+Menschen lesen, Gesprächsführung, Gentleman und Rhetorik sind ausschließlich als ehrliche Kommunikation angelegt. Keine Anleitungen zum Manipulieren.
 
 ## Regeln der App (so habe ich sie umgesetzt)
 
+- **Abendcheck:** Keine feste Uhrzeit. Nils startet ihn per Knopf, sobald er zu Hause ist. Der Plan reserviert die Zeit nach dem letzten Block (frühestens zur Richtzeit aus den Einstellungen, 21:30 Mo bis Fr). Eine Erinnerung darf kommen, aber der Abendcheck gilt nie automatisch als verpasst. Der Streak hängt nur an der Lernzeit.
 - **Fokus:** Aufgaben zuerst. Freizeit gibt es erst nach den Aufgaben, über einen Knopf.
 - **Freizeit:** Kein festes Limit mehr. Der Knopf **15 Minuten Freizeit** (Heute, auch in der Bock-Frage) fügt einen 15-Minuten-Block ganz vorn ein und schiebt alles Folgende nach hinten. Die App rechnet vorher durch: Würde dadurch eine Aufgabe nicht mehr vor den Abendcheck passen, lehnt sie ab und nennt die Aufgabe. So oft, wie der Tag es hergibt.
 - **Streak:** Ein Tag zählt ab 5 Minuten Lernzeit (Lektionen, Hausaufgaben). Tagesring mit sechs Zielen: Lernen, Sport, Wasser, Selbstverteidigung, Lesen, 15 Minuten Zukunftswissen.
 - **Zukunftswissen:** Lernzeit in Schule und Finanzen (Finanzen & Wirtschaft, Investieren, Schule) und Hausaufgaben. Lesen zählt nicht mehr dazu.
 - **Verpasster Tag:** Keine 5 Minuten und keine akzeptierte Begründung bis Mitternacht: Tag verloren, Streak reißt. Beim nächsten Öffnen kommt die Meldung ("Du Versager", nur dafür, mit Vornamen, abschaltbar unter *Harter Ton*) und sofort der nächste Schritt.
-- **Wiedereinstieg:** Drei Mini-Lektionen am Tag nach dem Ausfall stellen einen Teil der Kette wieder her. Wie viel, ist noch offen (siehe `FRAGEN.md`, aktuell die Hälfte aufgerundet).
+- **Wiedereinstieg:** Drei Mini-Lektionen am Tag nach dem Ausfall setzen die Kette auf die **Hälfte des früheren Stands** (aufgerundet, der heutige Lerntag ist mitgezählt). Streak war 10, danach steht sie bei 5. Die App zeigt das oben auf Heute: „Noch 2 Mini-Lektionen, dann bist du bei 5“.
 - **Begründung:** Eine akzeptierte pro Kalenderwoche. Sie braucht eine Kategorie, mindestens zwei Sätze und darf nicht "kein Bock/vergessen/keine Zeit" enthalten. Ausgleich am nächsten Tag: ein Block "Ausgleich für gestern" (15 Minuten) kommt vor die Freizeit, dazu eine Seite mehr lesen. Das ersetzt "15 Minuten weniger Freizeit", weil es kein festes Freizeitkonto mehr gibt (siehe `FRAGEN.md`).
 - **Selbstverteidigung:** Jeden Tag 15 Minuten (3 Aufwärmen, 7 Schattenboxen, 5 Seilspringen), auch an Gym-Tagen. Sie wird vor Sport und Lesen eingeplant und fällt nicht aus dem Plan. Die Einstellung heißt *Selbstverteidigung pro Tag* (15, 20 oder 30 Minuten).
-- **Gym:** Abends, frühestens 19:00, immer 75 Minuten (einstellbar), ungekürzt. Passt es nicht mehr vor den Abendcheck, wird es nicht verkürzt, sondern wandert auf die nächsten Tage. Die Beschreibung richtet sich nach der Uhrzeit ("Training am Abend"). **Joggen** ist flexibel, frühestens 16:00. In einer Ausfall-Lücke wird nur Joggen vorgeschlagen, nie Gym.
+- **Gym:** Abends, frühestens 19:00, immer **75 Minuten inklusive Hin- und Rückweg** (einstellbar), ungekürzt, auch bei spätem Start (20:10 bis 21:25). Es gibt nur diese eine Zahl, überall. Die Beschreibung richtet sich nach der Uhrzeit („Training am Abend, inklusive Hin- und Rückweg“) und nennt keine Minuten. Passt es nicht mehr in den Tag, wird es nicht verkürzt, sondern wandert auf die nächsten Tage. **Joggen** ist flexibel, frühestens 16:00. In einer Ausfall-Lücke wird nur Joggen vorgeschlagen, nie Gym.
 - **Handball:** Nur Montag (18:30 bis 20:15) und Freitag (18:00 bis 20:00). 20 Minuten Hinweg und 20 Minuten Rückweg sind als feste Blöcke eingeplant. In den Einstellungen ist Handball nur für Mo und Fr wählbar.
 - **Hausaufgaben:** Unter *Hausaufgaben* eintragen (Fach, Aufgabe, Frist, Aufwand 30 Min, 1 Std oder 2 Std). Die App plant sie nach Frist in Stücken von höchstens 60 Minuten vor dem Lernen ein. Die Zeit zählt als Lernzeit und als Zukunftswissen.
 - **Bücher:** "Die 1 %-Methode" und "Think and Grow Rich" sind angelegt (Seitenzahlen kannst du eintragen). Weitere Bücher fügst du unter *Lernen > Bücher* hinzu.
 - **Nachholen:** Was bis zum Tagesende nicht mehr passt oder ausgelassen wurde (Lernen, Lesen, Selbstverteidigung, Sport), wandert auf die nächsten Tage (höchstens zwei Blöcke am Tag, nach 6 Tagen verfällt es).
 - **Themenwahl:** Ein Thema bleibt mindestens 3 und höchstens 10 Tage dran, solange Lücken bleiben. Sitzt die Grundlage (Wissensstand ab 70 %, "Erklär es einem Freund" bestanden, mindestens zwei Sitzungen), wechselt die App zum am längsten nicht gelernten Thema. Bei Wiederkehr beginnt jede Sitzung mit einem Wissenscheck.
+- **Wochenherausforderung:** Die Zielzahl für „Seitenfresser“ (120 Seiten) steht in den Einstellungen und ist jederzeit änderbar.
 - **Wochentyp A/B:** Fortlaufend abwechselnd ab KW 47 = A (KW 48 = B), auch über den Jahreswechsel. Unter *Mehr* umstellbar. Der Stundenplan wurde gegen deine Tabelle geprüft: Montag A hat Informatik in 5/6, Montag B ist 5/6 frei. Freitag hat in Woche A Kunst und in Woche B Philosophie in 7/8, also nie früher Schluss.
 
 ### Annahmen
@@ -150,7 +164,7 @@ Menschen lesen und Gesprächsführung sind ausschließlich als ehrliche Kommunik
 
 ## Design
 
-Ruhige dunkle Fläche, ein Akzent (Orange), starke Typografie, keine Emojis (eigene Linien-Symbole in `src/ui/icons.js`), kein Maskottchen. Die nächste Aufgabe ist die größte Karte auf der Startseite. Titel der Stufen: Stufe I, Konsequent, Verlässlich, Hartnäckig, Souverän, Eisern, Meister, Elite, Unbeugsam, Legende. Getestet in 375 px Breite (iPhone).
+Der Fokus der App heißt „Disziplin“, der iPhone-Kurzbefehl „Fokus Disziplin“. Ruhige dunkle Fläche, ein Akzent (Orange), starke Typografie, keine Emojis (eigene Linien-Symbole in `src/ui/icons.js`), kein Maskottchen. Die nächste Aufgabe ist die größte Karte auf der Startseite. Titel der Stufen: Stufe I, Konsequent, Verlässlich, Hartnäckig, Souverän, Eisern, Meister, Elite, Unbeugsam, Legende. Getestet in 375 px Breite (iPhone).
 
 ## Bekannte Lücken
 

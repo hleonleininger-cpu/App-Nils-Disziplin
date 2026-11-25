@@ -98,14 +98,14 @@ function showAlerts() {
     const when = al.date === addDays(todayStr(), -1) ? 'Gestern' : niceDate(al.date);
     modal(`<div class="alert-miss big-msg"><div class="big-ic" style="color:#ff9b99">${icon('warn', 30)}</div><h2>${hard ? `${esc(name)}. ${when} ist komplett ausgefallen. Du Versager.` : `${esc(name)}, ${when} ist komplett ausgefallen.`}</h2>
       <p>${al.prev ? `Deine Kette von <b>${al.prev}</b> ${al.prev === 1 ? 'Tag' : 'Tagen'} ist gerissen.` : 'Die Kette ist weg.'}</p>
-      <p class="muted" style="margin-top:8px">${hard ? 'Das war es. Aber das hier ist nicht das Ende:' : ''} Mach heute <b>drei Mini-Lektionen</b> ${al.prev ? `und du holst <b>${restore}</b> ${restore === 1 ? 'Tag' : 'Tage'} der Streak zurück.` : 'und du bist wieder drin.'}</p>
+      <p class="muted" style="margin-top:8px">${hard ? 'Das war es. Aber das hier ist nicht das Ende:' : ''} Mach heute <b>drei Mini-Lektionen</b> ${al.prev ? `und deine Streak steht wieder bei <b>${restore}</b>.` : 'und du bist wieder drin.'}</p>
       <p style="margin-top:8px"><b>Nächster Schritt: Mini-Lektion 1 von 3. Jetzt.</b></p></div>
       <div class="btns"><a class="btn primary big" href="#/session?mini=1" data-close>Mini-Lektion starten</a></div>`, {
       dismissable: false,
       onMount: (m, close) => m.querySelector('a').addEventListener('click', () => A.markAlertSeen(al.id)),
     });
   } else if (al.type === 'restored') {
-    modal(`<div class="big-msg"><div class="big-ic">${icon('flame', 30)}</div><h2>Wieder drin.</h2><p>Drei Lektionen geschafft. Die Streak ist mit <b>${al.value}</b> ${al.value === 1 ? 'Tag' : 'Tagen'} zurück (vorher ${al.prev}).</p></div><div class="btns"><button class="btn primary big" data-close>Weiter</button></div>`, {
+    modal(`<div class="big-msg"><div class="big-ic">${icon('flame', 30)}</div><h2>Wieder drin.</h2><p>Drei Lektionen geschafft. Deine Streak steht wieder bei <b>${al.value}</b> (vorher ${al.prev}).</p></div><div class="btns"><button class="btn primary big" data-close>Weiter</button></div>`, {
       onMount: (m) => m.querySelector('button').addEventListener('click', () => A.markAlertSeen(al.id)),
     });
   }
@@ -175,6 +175,7 @@ export async function start() {
 
   bindGlobal();
   setRefresh(() => render(true));
+  A.migrateSettings();
   A.rollover();
   lastDate = todayStr();
   render();

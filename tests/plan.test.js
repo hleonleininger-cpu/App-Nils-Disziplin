@@ -145,10 +145,10 @@ describe('Selbstverteidigung, Gym, Handball', () => {
     expect(g.title).toBe('Gym');
     expect(g.start).toBeGreaterThanOrEqual(m(19));
     expect(g.dur).toBe(75);
-    expect(g.sub).toBe('Training am Abend');
+    expect(g.sub).toBe('Training am Abend, inklusive Hin- und Rückweg');
     expect(g.sub).not.toMatch(/Min/);
     const mid = buildDay({ date: '2026-11-24', S, TT, D: D0, now: m(18) });
-    expect(mid.blocks.find((x) => x.id === 'sport').sub).toBe('Training am Abend');
+    expect(mid.blocks.find((x) => x.id === 'sport').sub).toMatch(/^Training am Abend/);
     // Um 20:32 passen 75 Minuten vor den Abendcheck nicht mehr: Gym fällt nicht gekürzt oder falsch beschriftet an, sondern wandert auf morgen
     const late = buildDay({ date: '2026-11-24', S, TT, D: D0, now: m(20, 32) });
     expect(late.blocks.find((x) => x.id === 'sport')).toBeUndefined();
@@ -253,5 +253,39 @@ describe('Tauschen über Block-ID', () => {
     const d = buildDay({ date: '2026-12-01', S, TT, D, carry, now: m(15) });
     expect(d.current.id).toBe('sport');
     expect(d.blocks.some((b) => b.id === 'carry-abc')).toBe(true);
+  });
+});
+
+describe('Abendcheck ohne feste Uhrzeit, Gym 75 Minuten inklusive Weg', () => {
+  const D = { wake: m(7), learnSec: 3600, done: { lunch: { start: 790, end: 800, min: 10 }, learn: { start: 900, end: 960, min: 60 }, sd: { start: 960, end: 975, min: 15 }, read: { start: 975, end: 995, min: 20 } } };
+  it('Gym darf auch um 20:10 beginnen und dauert unverändert 75 Minuten', () => {
+    const d = buildDay({ date: '2026-11-24', S, TT, D: { ...D, choice: { kind: 'sport', id: 'sport' } }, now: m(20, 10) });
+    const g = d.blocks.find((x) => x.id === 'sport');
+    expect(g.start).toBe(m(20, 10));
+    expect(g.dur).toBe(75);
+    expect(g.end).toBe(m(21, 25));
+  });
+  it('Heute und Plan zeigen dieselbe Dauer: die Beschreibung enthält keine Minutenzahl', () => {
+    const d = buildDay({ date: '2026-11-24', S, TT, D, now: m(18) });
+    const g = d.blocks.find((x) => x.id === 'sport');
+    expect(g.dur).toBe(75);
+    expect(g.sub).not.toMatch(/\d/);
+  });
+  it('der Abendcheck wird nach dem Gym reserviert und startet nicht vor dem Ende des Gym', () => {
+    const d = buildDay({ date: '2026-11-24', S, TT, D: { ...D, choice: { kind: 'sport', id: 'sport' } }, now: m(20, 10) });
+    const e = d.blocks.find((x) => x.id === 'evening');
+    expect(e.start).toBeGreaterThanOrEqual(m(21, 25));
+    expect(e.fixed).toBe(false);
+  });
+  it('wird nicht als verpasst gewertet und drängt nicht, bevor Nils zu Hause sein kann', () => {
+    // Gym läuft bis 21:25, um 21:30 ist der Abendcheck erst "bereit", Status bleibt offen
+    const d = buildDay({ date: '2026-11-24', S, TT, D: { ...D, started: { sport: { min: m(20, 10), ts: 1 } } }, now: m(21, 0) });
+    expect(d.current.id).toBe('sport');
+    const late = buildDay({ date: '2026-11-24', S, TT, D: { ...D, done: { ...D.done, sport: { start: m(20, 10), end: m(21, 25), min: 75 } } }, now: m(23, 59) });
+    expect(late.blocks.find((x) => x.id === 'evening').status).toBe('pending');
+  });
+  it('der Abendcheck zählt nicht als "nächster fester Termin"', () => {
+    const d = buildDay({ date: '2026-11-24', S, TT, D, now: m(18) });
+    expect(d.nextFixed?.kind).not.toBe('evening');
   });
 });

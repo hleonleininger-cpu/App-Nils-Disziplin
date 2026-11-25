@@ -68,11 +68,23 @@ export const NEXT_STEP_HARD = [
   'Nächster Schritt: Handy weg, Lektion auf.',
 ];
 
-export const PROMPT_TEMPLATE = (topicName, packSpec) => `Recherchiere das Thema "${topicName}" für einen Schüler der 12. Klasse (Dortmund, Ziel: Finanzbranche, später Geschäftsführung im Fachhandel für Schwimmbad und Sauna).
-Nimm nur verlässliche Quellen (Fachbücher, Hochschulen, Behörden, anerkannte Fachmedien). Erfinde nichts. Wenn etwas umstritten ist, schreib das dazu.
-Menschen lesen und Gesprächsführung nur als ehrliche Kommunikation: Zuhören, gute Fragen, Körpersprache verstehen. Keine Anleitungen zum Manipulieren oder Täuschen.
-Liefere das Ergebnis als ein einziges JSON-Objekt im folgenden Format, ohne Text drumherum:
+export const PROMPT_TEMPLATE = (topicName, packSpec) => `Recherchiere das Thema "${topicName}" für Nils (Schüler, bald 18, Q1, Dortmund; Ziele: Finanzbranche, später Geschäftsführung im Fachhandel für Schwimmbad und Sauna).
 
+REGELN FÜR QUELLEN (zwingend)
+1. Jede Aussage hat eine Quelle. Erlaubt sind: Gesetze mit Paragraph (zum Beispiel "BGB § 488"), Fachbücher mit Autor und Ausgabe (zum Beispiel "Autor, Titel, 3. Auflage, Verlag, Jahr") und offizielle Seiten (Bundesbank, EZB, Bundesregierung, Statistisches Bundesamt, Behörden, Hochschulen).
+2. Keine Blogs ohne Autor, keine Foren, keine Content-Seiten ohne Autor oder Datum.
+3. Was sich nicht belegen lässt, wird nicht als Tatsache geschrieben. Markiere es mit "uncertain": true an der Stelle (explain, terms, flashcards, quiz, questions) und trage die Aussage zusätzlich in die Liste "uncertain" des Pakets ein. Erfinde keine Quellen, Paragraphen oder Zahlen. Wenn du etwas nicht sicher weißt, sag es.
+4. Das Feld "sources" ist Pflicht und darf nie leer sein. Die App lehnt ein Paket ohne echte Quellen ab. Ordne jedem Erklärabschnitt in "refs" die passenden Quellentitel zu.
+5. Ist etwas umstritten, schreib das dazu.
+6. Menschen lesen, Gesprächsführung, Gentleman, Rhetorik und Charme nur als ehrliche Kommunikation: Zuhören, gute Fragen, Körpersprache einordnen. Keine Anleitungen zum Manipulieren oder Täuschen.
+
+AUFBAU
+- Liefere ein einziges JSON-Objekt, ohne Text davor oder danach und ohne Code-Zaun.
+- Kurze, klare Sätze. Beispiele aus dem Alltag eines Schülers.
+- Das Feld "practice" (Praxisaufgabe, eine Alltagsaufgabe für heute mit Vorgehen und Erfolgskontrolle) ist Pflicht.
+- Das Paket wird in der App genau so übernommen, wie du es lieferst. Prüfe vor der Ausgabe, dass das JSON vollständig ist (alle Klammern geschlossen).
+
+FORMAT
 ${packSpec}`;
 
 export const DAILY_TEASERS = [

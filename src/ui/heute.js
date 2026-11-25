@@ -33,8 +33,8 @@ function heroHtml(plan, today, S) {
   const D = store.getDay(today);
   if (!b) {
     return `<div class="hero" style="--c:#34c98b"><div class="lab">${icon('check', 14)} Alles erledigt</div><h2>Das war's für heute, ${esc(S.name)}.</h2>
-      <div class="sub">Abendcheck um ${fmt(plan.eveStart)}. Danach Handy aus und lesen. Freizeit gibt es unten, solange der Tag es hergibt.</div>
-      <div class="actions"><button class="btn big" data-act="h-evening">Abendcheck jetzt</button></div></div>`;
+      <div class="sub">Den Abendcheck startest du selbst, sobald du zu Hause bist (reserviert ab ${fmt(plan.eveStart)}). Danach Handy aus und lesen. Freizeit gibt es unten, solange der Tag es hergibt.</div>
+      <div class="actions"><button class="btn big" data-act="h-evening">Abendcheck starten</button></div></div>`;
   }
   const lab = b.status === 'running' ? 'Läuft gerade' : b.start > now + 2 ? `Als Nächstes · in ${until(b.start, now)}` : 'Jetzt';
   const color = b.color || COLORS[b.kind] || '#ff6b2c';
@@ -75,7 +75,7 @@ function heroHtml(plan, today, S) {
       break;
     case 'evening':
       title = 'Abendcheck';
-      sub = 'Rückblick, Abfrage, Vaterunser, eigene Worte. Danach Handy aus.';
+      sub = 'Starte ihn, sobald du zu Hause bist. Rückblick, Abfrage, Vaterunser, eigene Worte. Danach Handy aus.';
       actions = `<button class="btn big" data-act="h-evening">Abendcheck starten</button>`;
       break;
     case 'sport':
@@ -138,9 +138,12 @@ export default {
     const waterFrac = Math.min(1, (D.water || 0) / S.waterGoal);
     const fut = Math.min(1, stats.futureMin / disc.FUTURE_MIN);
     const free = plan.free;
+    const rc = A.recoveryInfo();
+    const recBanner = rc ? `<div class="card tight" style="border-color:var(--accent);margin-top:12px"><div class="row sp"><div><b>Wiedereinstieg</b><div class="muted" style="font-size:14px;margin-top:2px">Noch ${plural(rc.remaining, 'Mini-Lektion', 'Mini-Lektionen')}, dann bist du bei ${rc.target} (Hälfte von ${rc.prev}).</div></div><a class="btn sm primary" href="#/session?mini=1">Mini-Lektion</a></div></div>` : '';
     return `
     <div class="top"><div><div class="date">${esc(S.name)} · ${niceDate(today)}</div><div class="motto">${esc(mottoFor(today))}</div></div>
       ${S.mechanics.points ? `<div class="pts" data-act="h-points"><b>${meta.points}</b><span class="lvl">${S.mechanics.titles ? disc.titleFor(lvl.level) + ' · ' : ''}Level ${lvl.level}</span></div>` : ''}</div>
+    ${recBanner}
     ${heroHtml(plan, today, S)}
     ${plan.next && plan.current ? `<div class="next">${icon(plan.next.icon || 'arrow', 20)}<div class="grow"><small>Danach · ${fmt(plan.next.start)}</small><b>${esc(plan.next.title)}</b></div><small>${fmtDur(plan.next.dur)}</small></div>` : ''}
     <div class="stats">

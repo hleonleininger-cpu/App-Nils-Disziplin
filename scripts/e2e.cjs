@@ -113,6 +113,7 @@ async function waitServer() {
     await click('Lektion starten');
     await page.waitForURL(/#\/session/);
     ok((await page.locator('#sess').innerText()).includes('Neues Wissen'), 'Sitzung beginnt mit Erklärung (Thema neu)');
+    ok(/Platzhalter/.test(await page.locator('#sess').innerText()), 'Platzhalter-Paket ist in der Lektion sichtbar als Platzhalter gekennzeichnet');
     await shot('session-read');
     let guard = 0;
     while (!(await page.locator('#sess').innerText()).includes('Weiter zum Tag') && guard++ < 60) {
@@ -121,6 +122,7 @@ async function waitServer() {
       if (await page.locator('.opt').count()) { await page.locator('.opt').first().click(); if (await page.locator('#ir-next').count()) await page.locator('#ir-next').click(); else if (await page.locator('#nx').count()) await page.locator('#nx').click(); continue; }
       if (await page.locator('#ir-show').count()) { await page.locator('#ir-show').click(); await page.locator('#yes').click(); continue; }
       if (await page.locator('#chk').count()) { await page.locator('#ans').fill('Der Zinseszins wächst exponentiell mit der Zeit, Inflation senkt die Kaufkraft'); await page.locator('#chk').click(); await page.locator('#ok, [data-s="1"]').first().click(); continue; }
+      if (await page.locator('.btns [data-s="1"]').count() && !(await page.locator('#rv').count()) && (await page.locator('#sess').innerText()).includes('Praxisaufgabe')) { await page.locator('.btns [data-s="1"]').first().click(); continue; }
       if (await page.locator('#rv').count()) { await page.locator('#rv').click(); await page.locator('[data-s="1"]').click(); continue; }
       if (await page.locator('#fin').count()) {
         await page.locator('#tb').fill('Zinseszins Inflation Kaufkraft Realzins sind wichtig');
@@ -244,6 +246,11 @@ async function waitServer() {
     ok(/11:00/.test(t), 'Verschlafen: neue Aufstehzeit 11:00 im Plan');
     await shot('verschlafen');
 
+    // ---- Neue Themen sichtbar und als Platzhalter gekennzeichnet ----
+    await page.goto(URL + '#/lernen');
+    t = await text();
+    ok(/Gentleman & Charme/.test(t) && /Rhetorik & freies Sprechen/.test(t) && /Selbstorganisation & Zeitmanagement/.test(t) && /Kleidung & Stil/.test(t), 'Lernen zeigt die vier neuen Themen');
+    ok((await page.locator('.chip', { hasText: 'Platzhalter' }).count()) >= 4, 'Themen mit Platzhalter-Paketen sind gekennzeichnet');
     // ---- Weitere Screens ----
     for (const r of ['woche', 'lernen', 'settings', 'stundenplan', 'buecher', 'import']) {
       await page.goto(URL + '#/' + r);
@@ -358,7 +365,13 @@ async function waitServer() {
     ok(await page.locator('[data-act="h-water"][data-ml="-250"]').isDisabled(), '−250 ml ist bei 0 gesperrt');
     // Import
     await page.goto(URL + '#/import');
-    await page.locator('#imp').fill(JSON.stringify({ topic: 'finanzen', title: 'E2E Paket', summary: 'x', quiz: [{ q: 'A?', options: ['a', 'b'], answer: 0 }, { q: 'B?', options: ['a', 'b'], answer: 1 }], flashcards: [{ q: 'q', a: 'a' }, { q: 'q2', a: 'a2' }, { q: 'q3', a: 'a3' }] }));
+    const pk = { topic: 'finanzen', title: 'E2E Paket', summary: 'x', quiz: [{ q: 'A?', options: ['a', 'b'], answer: 0 }, { q: 'B?', options: ['a', 'b'], answer: 1 }], flashcards: [{ q: 'q', a: 'a' }, { q: 'q2', a: 'a2' }, { q: 'q3', a: 'a3' }] };
+    await page.locator('#imp').fill(JSON.stringify(pk));
+    await page.getByRole('button', { name: 'Prüfen' }).click();
+    await page.waitForSelector('#res .err');
+    ok(/Keine Quellen/.test(await page.locator('#res').innerText()) && (await page.locator('[data-act="i-do"]').count()) === 0, 'Import ohne Quellen wird abgelehnt (kein Importieren-Knopf)');
+    await shot('import-ohne-quellen');
+    await page.locator('#imp').fill(JSON.stringify({ ...pk, sources: [{ title: 'Bundesbank, Monatsbericht', url: 'https://www.bundesbank.de' }], uncertain: ['Diese Zahl ist nicht sicher belegt.'], practice: { task: 'Tu es', how: 'So', check: 'Fertig' } }));
     await page.getByRole('button', { name: 'Prüfen' }).click();
     await page.waitForSelector('[data-act="i-do"]');
     await shot('import-pruefen');
@@ -366,10 +379,13 @@ async function waitServer() {
     await page.waitForURL(/#\/lernen/);
     await page.goto(URL + '#/import');
     ok((await text()).includes('E2E Paket'), 'Importiertes Paket erscheint in der Liste');
-    await page.locator('#imp').fill('# MD Paket\ntopic: investieren\n\n## Karteikarten\n- Frage? => Antwort\n- Zwei? => Zwei\n- Drei? => Drei\n');
+    await page.locator('#imp').fill('# MD Paket\ntopic: investieren\n\n## Karteikarten\n- Frage? => Antwort\n- Zwei? => Zwei\n- Drei? => Drei\n\n## Quellen\n- Bundesbank | https://www.bundesbank.de\n');
     await page.getByRole('button', { name: 'Prüfen' }).click();
     await page.waitForSelector('[data-act="i-do"]');
     ok(/MD Paket/.test(await page.locator('#res').innerText()), 'Markdown-Import wird erkannt');
+    await page.locator('#imp').fill('"topic": "finanzen",\n"title": "T",\n"sources": [{"title":"S"}]\n}');
+    await page.getByRole('button', { name: 'Prüfen' }).click();
+    ok(/öffnende geschweifte Klammer/.test(await page.locator('#res').innerText()) && !/Feld "topic" fehlt/.test(await page.locator('#res').innerText()), 'JSON ohne öffnende Klammer: klare Meldung statt "topic fehlt"');
     await page.locator('#imp').fill('{kaputt');
     await page.getByRole('button', { name: 'Prüfen' }).click();
     ok(/JSON unvollständig oder fehlerhaft/.test(await page.locator('#res').innerText()), 'Kaputtes JSON wird verständlich gemeldet');

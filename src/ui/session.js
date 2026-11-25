@@ -80,13 +80,25 @@ function show() {
 
   if (step.kind === 'read') {
     const p = step.pack;
-    body.innerHTML = `${title}<small>${esc(p.title)}${p.placeholder ? ' · Platzhalter-Inhalt, nicht quellengeprüft' : ''}</small>
+    const unsure = '<span class="chip" style="--c:#e8b04a;margin-left:6px">unsicher</span>';
+    body.innerHTML = `${title}<div class="row" style="flex-wrap:wrap;gap:8px"><small>${esc(p.title)}</small>${p.placeholder ? '<span class="chip" style="--c:#f0524f">Platzhalter · nicht quellengeprüft</span>' : ''}</div>
       ${p.summary ? `<p style="margin-top:10px;font-weight:700">${esc(p.summary)}</p>` : ''}
-      <div class="expl">${(p.explain || []).map((e) => `<h3>${esc(e.heading)}</h3><p>${esc(e.text)}</p>`).join('')}</div>
-      ${p.terms?.length ? `<h3 style="margin-top:16px">Fachbegriffe</h3>${p.terms.map((t) => `<div class="term"><b>${esc(t.term)}</b>: ${esc(t.def)}</div>`).join('')}` : ''}
+      ${p.uncertain?.length ? `<div class="card tight" style="border-color:#e8b04a"><b>Unsichere Aussagen</b><div class="muted" style="font-size:13px;margin:2px 0 6px">Nicht sicher belegt. Prüfe sie, bevor du sie weitergibst.</div>${p.uncertain.map((u) => `<div class="term">${esc(u)}</div>`).join('')}</div>` : ''}
+      <div class="expl">${(p.explain || []).map((e) => `<h3>${esc(e.heading)}${e.uncertain ? unsure : ''}</h3><p>${esc(e.text)}</p>${e.refs?.length ? `<p class="muted" style="font-size:12px;margin-top:4px">Quelle: ${e.refs.map(esc).join('; ')}</p>` : ''}`).join('')}</div>
+      ${p.terms?.length ? `<h3 style="margin-top:16px">Fachbegriffe</h3>${p.terms.map((t) => `<div class="term"><b>${esc(t.term)}</b>${t.uncertain ? unsure : ''}: ${esc(t.def)}</div>`).join('')}` : ''}
       ${p.sources?.length ? `<p class="muted" style="margin-top:12px;font-size:12px">Quellen: ${p.sources.map((s) => (s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" style="text-decoration:underline">${esc(s.title)}</a>` : esc(s.title))).join(' · ')}</p>` : ''}
       <div class="btns"><button class="btn primary big" id="nx">Verstanden, weiter</button></div>`;
     body.querySelector('#nx').onclick = () => done({});
+  } else if (step.kind === 'practice') {
+    const pr = step.practice;
+    body.innerHTML = `${title}<p style="font-size:20px;font-weight:800;margin-top:8px;line-height:1.3">${esc(pr.task)}</p>
+      ${pr.how ? `<h3 style="margin-top:14px">So gehst du vor</h3><p class="muted" style="margin-top:4px;line-height:1.5">${esc(pr.how)}</p>` : ''}
+      ${pr.check ? `<h3 style="margin-top:14px">Woran du merkst, dass es geklappt hat</h3><p class="muted" style="margin-top:4px;line-height:1.5">${esc(pr.check)}</p>` : ''}
+      <div class="btns"><button class="btn good" data-s="1">Habe ich schon gemacht</button><button class="btn" data-s="0.5">Mache ich heute noch</button></div>`;
+    body.querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => {
+      if (b.dataset.s === '0.5') store.updateDay(S.today, (d) => ((d.notes = d.notes || []), d.notes.push({ topic: S.topic.id, practice: pr.task, open: true })));
+      done({});
+    }));
   } else if (step.kind === 'check' || step.kind === 'cards' || step.kind === 'quiz' || step.kind === 'quick' || step.kind === 'voice') {
     body.innerHTML = `${title}${step.kind === 'check' ? '<p class="muted">Kurz prüfen, was hängen geblieben ist. Ehrlich antworten.</p>' : ''}<div id="run"></div>`;
     if (!step.items.length) return done({});
@@ -185,7 +197,7 @@ function finish() {
     <div class="card"><div class="row sp"><b>${esc(S.topic.name)}</b><span class="chip" style="--c:${S.topic.color}">${L.STATUS_TEXT[st]}</span></div>
       <div style="margin-top:10px">${bar(p.k / 100, S.topic.color)}</div><small>Wissensstand ${before}% → ${p.k}%</small>
       ${p.gaps.length ? `<p class="warn">${p.gaps.length} offene Lücke${p.gaps.length > 1 ? 'n' : ''}. Die kommen morgen wieder dran.</p>` : '<p class="ok">Keine offenen Lücken.</p>'}
-      ${rec ? `<p class="ok" style="margin-top:8px">Wiedereinstieg: ${rec.finished ? 'geschafft, die Kette ist zur Hälfte zurück.' : 'Lektion gezählt.'}</p>` : ''}</div>
+      ${rec ? `<p class="ok" style="margin-top:8px">Wiedereinstieg: ${rec.finished ? `geschafft. Du bist wieder bei ${rec.target}.` : `Noch ${rec.remaining} ${rec.remaining === 1 ? 'Mini-Lektion' : 'Mini-Lektionen'}, dann bist du bei ${rec.target}.`}</p>` : ''}</div>
     <div class="btns"><a class="btn primary big" href="#/heute">Weiter zum Tag</a></div>
-    <div class="btns"><a class="btn" href="#/session?mini=1" id="again">Noch eine Mini-Lektion</a></div>`;
+    <div class="btns"><a class="btn" href="#/session?mini=1" id="again">${rec && !rec.finished ? 'Nächste Mini-Lektion' : 'Noch eine Mini-Lektion'}</a></div>`;
 }

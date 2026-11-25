@@ -324,18 +324,22 @@ export function recordLesson(date) {
   const rec = meta.recovery;
   if (rec && !rec.restored && date <= rec.until) {
     let finished = false;
+    let target = Math.ceil(rec.prevStreak / 2);
     store.updateMeta((m) => {
       m.recovery.done += 1;
       if (m.recovery.done >= m.recovery.need) {
         m.recovery.restored = true;
-        const val = Math.ceil(m.recovery.prevStreak / 2);
-        m.restores[m.recovery.missDate] = val;
-        m.alerts.push({ id: uid(), type: 'restored', value: val, prev: m.recovery.prevStreak, seen: false });
+        // Nach Abschluss steht die Kette bei der Hälfte des früheren Stands (aufgerundet), der heutige Lerntag ist mitgezählt.
+        const days = store.allDays();
+        let doneBefore = 0;
+        for (let d = addDays(m.recovery.missDate, 1); d < date; d = addDays(d, 1)) if (disc.learnMinutes(days[d] || {}) >= disc.STREAK_MIN) doneBefore++;
+        m.restores[m.recovery.missDate] = Math.max(0, target - doneBefore - 1);
+        m.alerts.push({ id: uid(), type: 'restored', value: target, prev: m.recovery.prevStreak, seen: false });
         finished = true;
       }
     });
     award(date, disc.POINTS.recoveryLesson, 'Wiedereinstieg');
-    return { recovery: true, finished };
+    return { recovery: true, finished, remaining: Math.max(0, rec.need - (rec.done + 1)), target };
   }
   return null;
 }
@@ -569,13 +573,19 @@ export function markAlertSeen(id) {
     if (a) a.seen = true;
   });
 }
+/** Stand des Wiedereinstiegs für die Anzeige, oder null. */
+export function recoveryInfo() {
+  const r = store.getMeta().recovery;
+  if (!r || r.restored || r.prevStreak < 1 || todayStr() > r.until) return null;
+  return { remaining: Math.max(0, r.need - r.done), target: Math.ceil(r.prevStreak / 2), prev: r.prevStreak };
+}
 export const pendingAlerts = () => store.getMeta().alerts.filter((a) => !a.seen);
 
 // ---------- Wochenherausforderung ----------
 export function weekChallengeState(anyDate) {
   const dates = disc.weekDates(anyDate);
   const mon = dates[0];
-  const ch = disc.challengeFor(mon);
+  const ch = disc.challengeFor(mon, store.getSettings().weeklyPages);
   const today = todayStr();
   const stats = dates.filter((d) => d <= today).map((d) => statsFor(d));
   const value = ch.measure(stats);
@@ -643,6 +653,12 @@ export function loadDemoData() {
     l.current = 'finanzen';
   });
   store.updateSettings((s) => (s.project = 'Euro Wellness: Produktliste anlegen'));
+}
+
+/** Einmalige Anpassungen alter Einstellungen. */
+export function migrateSettings() {
+  const S = store.getSettings();
+  if (S.focusShortcut === 'Fokus Lernen') store.updateSettings((s) => (s.focusShortcut = 'Fokus Disziplin'));
 }
 
 export function startFresh() {

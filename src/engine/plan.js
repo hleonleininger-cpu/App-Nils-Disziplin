@@ -298,19 +298,15 @@ export function buildDay(ctx) {
     }
   }
 
-  // Evening
-  add({
-    id: 'evening', kind: 'evening', title: 'Abendcheck', sub: 'Rückblick · Vaterunser · eigene Worte', start: eveStart, dur: 30,
-    color: COLORS.evening, icon: 'moon', fixed: true, status: D.evening?.done ? 'done' : 'pending',
-  });
-
   // Bereits erledigte oder laufende Aufgaben (feste Position)
   const flexDefs = [];
   const learnTarget = weekend ? S.learnTarget.we : S.learnTarget.wk;
   const learnedMin = (D.learnSec || 0) / 60;
   const pendingWindowLearn = blocks.filter((b) => b.window && b.kind === 'learn' && (b.status === 'pending' || b.status === 'running')).reduce((a, b) => a + b.dur, 0);
   const needLearn = Math.max(0, learnTarget - learnedMin - pendingWindowLearn);
-  const sportLabel = (start) => (start < 12 * 60 ? 'Training am Vormittag' : start < 17 * 60 ? 'Training am Nachmittag' : start < 21 * 60 ? 'Training am Abend' : 'Training spät am Abend');
+  const dayword = (start) => (start < 12 * 60 ? 'Training am Vormittag' : start < 17 * 60 ? 'Training am Nachmittag' : start < 21 * 60 ? 'Training am Abend' : 'Training spät am Abend');
+  // Gym: die 75 Minuten enthalten Hin- und Rückweg. Es gibt nur diese eine Zahl, die Beschreibung nennt sie nicht.
+  const gymLabel = (start) => `${dayword(start)}, inklusive Hin- und Rückweg`;
   const learnDef = (id, dur) => ({ id, kind: 'learn', title: topic ? `Lernen: ${topic.name}` : 'Lernen', sub: topic?.hint || 'Wissenscheck, dann tiefer', dur, min: 15, color: topic?.color || COLORS.learn, icon: topic?.icon || 'book', topicId: topic?.id, carryable: true });
 
   // 1) Freizeit-Blöcke, die Nils sich per Knopf genommen hat (je 15 Minuten, ganz vorn)
@@ -355,7 +351,7 @@ export function buildDay(ctx) {
   // 6) Sport: Gym ab 19:00 (eine feste Dauer), Joggen flexibel ab 16:00
   if (!sportInWindow && (sp.type === 'gym' || sp.type === 'jog')) {
     const d = S.sportDur?.[sp.type] || (sp.type === 'gym' ? 75 : 45);
-    flexDefs.push({ id: 'sport', kind: 'sport', title: SPORT_INFO[sp.type].title, sub: '', subFn: sportLabel, dur: d, min: d, earliest: hm(sp.type === 'gym' ? S.gymEarliest || '19:00' : S.sportEarliest || '16:00'), color: COLORS.sport, icon: SPORT_INFO[sp.type].icon, carryable: true });
+    flexDefs.push({ id: 'sport', kind: 'sport', title: SPORT_INFO[sp.type].title, sub: '', subFn: sp.type === 'gym' ? gymLabel : dayword, dur: d, min: d, earliest: hm(sp.type === 'gym' ? S.gymEarliest || '19:00' : S.sportEarliest || '16:00'), color: COLORS.sport, icon: SPORT_INFO[sp.type].icon, carryable: true });
   }
   if (!wantedKinds.read) {
     const extra = comp?.extraPages ? ` · +${comp.extraPages} Seite Ausgleich` : '';
@@ -406,6 +402,17 @@ export function buildDay(ctx) {
   }
 
   for (const b of blocks) if (b.subFn) b.sub = b.subFn(b.start);
+
+  // Abendcheck: keine feste Uhrzeit. Die Zeit wird nach dem letzten Block reserviert (frühestens zur Richtzeit).
+  // Nils startet ihn selbst per Knopf. Er wird nie automatisch als verpasst gewertet.
+  {
+    const lastEnd = Math.max(0, ...blocks.filter((b) => b.dur > 0 && b.status !== 'skipped' && b.kind !== 'bock' && b.kind !== 'morning').map((b) => b.end));
+    const start = Math.max(eveStart, lastEnd);
+    blocks.push({
+      id: 'evening', kind: 'evening', title: 'Abendcheck', sub: 'Du startest ihn selbst, sobald du zu Hause bist', start, dur: 30, end: start + 30,
+      color: COLORS.evening, icon: 'moon', fixed: false, soft: true, status: D.evening?.done ? 'done' : 'pending',
+    });
+  }
   blocks.sort((a, b) => a.start - b.start || (a.kind === 'bock' ? -1 : 0));
 
   // Aktuell und Nächstes
@@ -430,11 +437,11 @@ export function buildDay(ctx) {
       next = rest[0] || null;
     }
   }
-  const nextFixed = now == null ? null : blocks.filter((b) => b.fixed && (b.kind === 'school' || b.kind === 'sport' || b.kind === 'evening') && b.start > now && b.status === 'pending').sort((a, b) => a.start - b.start)[0] || null;
+  const nextFixed = now == null ? null : blocks.filter((b) => b.fixed && (b.kind === 'school' || b.kind === 'sport') && b.start > now && b.status === 'pending').sort((a, b) => a.start - b.start)[0] || null;
 
   return {
     date, wd, weekend, weekType: school.wt, blocks, windows, overflow, current, next, nextFixed,
-    wake, planWake, morningEnd, schoolEnd, eveStart, limitEnd, lessons: school.lessons, periods: school.periods,
+    wake, planWake, morningEnd, schoolEnd, eveStart: (blocks.find((b) => b.id === 'evening') || { start: eveStart }).start, eveTarget: eveStart, limitEnd, lessons: school.lessons, periods: school.periods,
     free: fr, sport: sp, sportDone: sportDoneAny || blocks.some((b) => b.kind === 'sport' && b.status === 'done'), noSchool,
     bockStart,
   };

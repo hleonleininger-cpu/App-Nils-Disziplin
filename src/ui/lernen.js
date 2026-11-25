@@ -19,7 +19,7 @@ export function promptFor(topicId) {
   let extra = `\nThema-ID im Feld "topic": "${topicId}". Gewünschtes Niveau (level): ${level}.`;
   if (existing.length) extra += `\nBereits vorhandene Lektionen (nicht wiederholen, darauf aufbauen): ${existing.map((p) => p.title).join('; ')}.`;
   if (prog.gaps.length) extra += `\nNils hat noch Lücken bei einzelnen Fragen, wiederhole die Kernideen mit anderen Formulierungen.`;
-  return PROMPT_TEMPLATE(t?.name || topicId, PACK_SPEC) + extra + '\nMindestens: 3 Erklärabschnitte, 5 Fachbegriffe, 6 Karteikarten, 5 Quizfragen, 2 offene Fragen, 1 teachBack, 1 Szenario oder Fall, Quellen mit Links.';
+  return PROMPT_TEMPLATE(t?.name || topicId, PACK_SPEC) + extra + '\nMindestens: 3 Erklärabschnitte (je mit refs), 5 Fachbegriffe, 6 Karteikarten, 5 Quizfragen, 2 offene Fragen, 1 teachBack, 1 practice, 1 Szenario oder Fall, Quellen mit Links.';
 }
 
 export default {
@@ -45,7 +45,7 @@ export default {
     ${A.getTopics().map((t) => {
       const pr = L.progressOf(learn, t.id);
       const n = L.packsFor(t.id, packs).length;
-      return `<div class="topic ${t.id === topic.id ? 'today' : ''}" style="--c:${t.color};${pr.paused ? 'opacity:.55' : ''}"><span class="em">${icon(t.icon || 'star', 24)}</span><div class="grow"><b>${esc(t.name)}</b><div style="margin:6px 0">${bar(pr.k / 100, t.color)}</div><small>${L.STATUS_TEXT[L.statusOf(pr)]} · ${pr.k}% · ${n} Paket${n === 1 ? '' : 'e'}${pr.paused ? ' · pausiert' : ''}</small>
+      return `<div class="topic ${t.id === topic.id ? 'today' : ''}" style="--c:${t.color};${pr.paused ? 'opacity:.55' : ''}"><span class="em">${icon(t.icon || 'star', 24)}</span><div class="grow"><b>${esc(t.name)}</b><div style="margin:6px 0">${bar(pr.k / 100, t.color)}</div><small>${L.STATUS_TEXT[L.statusOf(pr)]} · ${pr.k}% · ${n} Paket${n === 1 ? '' : 'e'}${pr.paused ? ' · pausiert' : ''}</small>${n && L.packsFor(t.id, packs).every((x) => x.placeholder) ? ' <span class="chip" style="--c:#f0524f">Platzhalter</span>' : ''}
         <div class="row" style="margin-top:8px;gap:8px"><button class="btn sm" data-act="l-now" data-id="${esc(t.id)}">Heute dieses</button><button class="btn sm" data-act="l-pause" data-id="${esc(t.id)}">${pr.paused ? 'Fortsetzen' : 'Pausieren'}</button><button class="btn sm" data-act="l-copy" data-topic="${esc(t.id)}" title="Auftrag kopieren">${icon('clip', 14)}</button></div></div></div>`;
     }).join('')}
     <div class="btns"><a class="btn" href="#/buecher">Bücher</a><a class="btn" href="#/hausaufgaben">Hausaufgaben</a><a class="btn" href="#/import">Importieren</a></div>`;

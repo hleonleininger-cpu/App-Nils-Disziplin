@@ -53,16 +53,20 @@ describe('Tageswechsel und verpasster Tag', () => {
     let m = store.getMeta();
     expect(m.recovery.missDate).toBe('2026-11-20');
     expect(m.recovery.prevStreak).toBe(10);
-    A.recordLesson('2026-11-21');
+    expect(A.recoveryInfo()).toMatchObject({ remaining: 3, target: 5 });
+    const r1 = A.recordLesson('2026-11-21');
+    expect(r1).toMatchObject({ remaining: 2, target: 5 });
     A.recordLesson('2026-11-21');
     expect(store.getMeta().restores['2026-11-20']).toBeUndefined();
+    expect(A.recoveryInfo()).toMatchObject({ remaining: 1, target: 5, prev: 10 });
     const r = A.recordLesson('2026-11-21');
     expect(r.finished).toBe(true);
+    expect(r.target).toBe(5);
     m = store.getMeta();
-    expect(m.restores['2026-11-20']).toBe(5);
-    expect(m.alerts.some((a) => a.type === 'restored')).toBe(true);
+    expect(m.alerts.find((a) => a.type === 'restored').value).toBe(5);
     day('2026-11-21'); // heute gelernt
-    expect(computeStreak(store.allDays(), '2026-11-21', m)).toBe(6);
+    // Nach drei Mini-Lektionen steht die Kette bei der Hälfte des alten Stands: 10 -> 5
+    expect(computeStreak(store.allDays(), '2026-11-21', m)).toBe(5);
   });
 
   it('Lektionen nach dem Wiedereinstiegsfenster zählen nicht', () => {
@@ -212,5 +216,27 @@ describe('Wasser', () => {
     A.addWater('2026-11-24', 500);
     expect(store.getMeta().points - before).toBeGreaterThanOrEqual(20);
     expect(store.getDay('2026-11-24').water).toBe(3500);
+  });
+});
+
+describe('Einstellungen', () => {
+  it('"Fokus Lernen" wird zu "Fokus Disziplin" migriert', () => {
+    boot('2026-11-24', '16:00');
+    store.updateSettings((x) => (x.focusShortcut = 'Fokus Lernen'));
+    A.migrateSettings();
+    expect(store.getSettings().focusShortcut).toBe('Fokus Disziplin');
+    store.updateSettings((x) => (x.focusShortcut = 'Mein Kurzbefehl'));
+    A.migrateSettings();
+    expect(store.getSettings().focusShortcut).toBe('Mein Kurzbefehl');
+  });
+  it('Seitenziel der Wochenherausforderung ist änderbar', () => {
+    boot('2026-11-24', '16:00');
+    expect(store.getSettings().weeklyPages).toBe(120);
+    // eine Woche mit der Seiten-Herausforderung suchen
+    let mon = '2026-11-23';
+    for (let i = 0; i < 20; i++) { if (A.weekChallengeState(mon).ch.id === 'pages') break; mon = addDays(mon, 7); }
+    expect(A.weekChallengeState(mon).ch.target).toBe(120);
+    store.updateSettings((x) => (x.weeklyPages = 200));
+    expect(A.weekChallengeState(mon).ch.target).toBe(200);
   });
 });

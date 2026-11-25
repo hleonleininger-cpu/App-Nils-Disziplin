@@ -57,7 +57,7 @@ export function runItems(el, items, { voice = false, onDone }) {
   function show() {
     if (i >= items.length) return onDone(results);
     const it = items[i];
-    const head = `${dots(i, items.length)}`;
+    const head = `${dots(i, items.length)}${it.uncertain ? '<div class="chip" style="--c:#e8b04a">unsicher belegt</div>' : ''}`;
     if (it.type === 'mc') {
       el.innerHTML = `${head}<h2 style="margin:8px 0">${esc(it.q)}</h2>${it.options.map((o, k) => `<button class="opt" data-k="${k}">${esc(o)}</button>`).join('')}<div id="ir-fb"></div>`;
       el.querySelectorAll('.opt').forEach((b) => {

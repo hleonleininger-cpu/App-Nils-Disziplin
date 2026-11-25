@@ -35,10 +35,11 @@ export default {
       ${row('Töne', sw('sound', S.sound), 'Kleine Töne beim Abhaken')}</div>
     <div class="card"><h2>Zeiten</h2>
       ${row('Aufstehen Mo–Fr', inp('wake.wk', S.wake.wk, 'time'))}${row('Aufstehen Wochenende', inp('wake.we', S.wake.we, 'time'))}
-      ${row('Abendcheck Mo–Fr', inp('evening.wk', S.evening.wk, 'time'))}${row('Abendcheck Wochenende', inp('evening.we', S.evening.we, 'time'))}
+      ${row('Abendcheck-Richtzeit Mo–Fr', inp('evening.wk', S.evening.wk, 'time'), 'Bis dahin plant die App deine Aufgaben. Gestartet wird der Abendcheck per Knopf, sobald du zu Hause bist.')}${row('Abendcheck-Richtzeit Wochenende', inp('evening.we', S.evening.we, 'time'))}
       ${row('Wasserziel (ml)', inp('waterGoal', S.waterGoal, 'number', 'min="500" step="250" inputmode="numeric"'))}
       ${row('Lernziel Mo–Fr (Min)', inp('learnTarget.wk', S.learnTarget.wk, 'number', 'min="10" inputmode="numeric"'))}${row('Lernziel Wochenende (Min)', inp('learnTarget.we', S.learnTarget.we, 'number', 'min="10" inputmode="numeric"'))}
       ${row('Lesezeit (Min)', inp('readMinutes', S.readMinutes, 'number', 'min="5" inputmode="numeric"'))}
+      ${row('Wochenherausforderung: Seiten', inp('weeklyPages', S.weeklyPages, 'number', 'min="10" step="10" inputmode="numeric"'), 'Ziel für die Herausforderung "Seitenfresser"')}
       ${row('Projekt (optional)', inp('project', S.project), 'Eigener Block, z. B. Euro Wellness')}
       ${row('Selbstverteidigung pro Tag', `<select data-chg="s-set" data-path="sdMinutes">${[15, 20, 30].map((v) => `<option value="${v}" ${S.sdMinutes === v ? 'selected' : ''}>${v} Min</option>`).join('')}</select>`, 'Jeden Tag gleich lang, auch an Gym-Tagen. Aufwärmen, Schattenboxen, Seilspringen.')}</div>
     <div class="card"><h2>Wochentyp A/B</h2><p>Diese Woche: <b>Woche ${wt}</b> (KW ${isoWeek(today).week}). Automatisch fortlaufend: KW 47 = A, KW 48 = B, danach abwechselnd.</p>
@@ -49,7 +50,7 @@ export default {
       return `<div class="list-item"><div style="width:90px"><b>${d.slice(0, 2)}</b></div><select data-chg="s-set" data-path="sport.${i}.type" style="flex:1">${[['gym', 'Gym'], ['jog', 'Joggen'], ...(i === 0 || i === 4 ? [['handball', 'Handball (fest)']] : []), ['none', 'Frei']].map(([v, l]) => `<option value="${v}" ${sp.type === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${sp.type === 'handball' ? `<input type="time" data-chg="s-set" data-path="sport.${i}.start" value="${sp.start || '18:00'}" style="width:96px"><input type="time" data-chg="s-set" data-path="sport.${i}.end" value="${sp.end || '20:00'}" style="width:96px">` : ''}</div>`;
     }).join('')}
       <p class="muted" style="margin-top:8px">Handball gibt es nur Montag und Freitag, mit je 20 Minuten Hin- und Rückweg.</p>
-      ${row('Gym-Dauer (Min)', inp('sportDur.gym', S.sportDur.gym, 'number', 'inputmode="numeric"'))}${row('Gym frühestens ab', inp('gymEarliest', S.gymEarliest, 'time'), 'Gym liegt immer abends')}
+      ${row('Gym-Dauer inkl. Hin- und Rückweg (Min)', inp('sportDur.gym', S.sportDur.gym, 'number', 'inputmode="numeric"'))}${row('Gym frühestens ab', inp('gymEarliest', S.gymEarliest, 'time'), 'Gym liegt immer abends')}
       ${row('Joggen-Dauer (Min)', inp('sportDur.jog', S.sportDur.jog, 'number', 'inputmode="numeric"'))}${row('Joggen frühestens ab', inp('sportEarliest', S.sportEarliest, 'time'))}</div>
     <div class="card"><h2>Motivation: ausprobieren</h2><p class="muted" style="margin-bottom:6px">Schalte an und aus, was dir gefällt. Die App protokolliert, was du nutzt (Woche-Ansicht).</p>${MECHANICS.map((m) => row(m.name, sw('mechanics.' + m.id, S.mechanics[m.id]), m.desc)).join('')}</div>
     <div class="card"><h2>Lernen</h2>

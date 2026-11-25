@@ -54,9 +54,9 @@ export function pickTopic({ date, learn, topics, packs, settings }) {
 // ---------- Aufgaben-Items ----------
 function itemsOf(pack) {
   const items = [];
-  pack.quiz?.forEach((q, i) => items.push({ id: `${pack.id}|q|${i}`, type: 'mc', q: q.q, options: q.options, answer: q.answer, explain: q.explain, packId: pack.id }));
-  pack.flashcards?.forEach((c, i) => items.push({ id: `${pack.id}|c|${i}`, type: 'card', q: c.q, a: c.a, packId: pack.id }));
-  pack.questions?.forEach((q, i) => items.push({ id: `${pack.id}|o|${i}`, type: 'open', q: q.q, keyPoints: q.keyPoints || [], packId: pack.id }));
+  pack.quiz?.forEach((q, i) => items.push({ id: `${pack.id}|q|${i}`, type: 'mc', q: q.q, options: q.options, answer: q.answer, explain: q.explain, packId: pack.id, uncertain: q.uncertain }));
+  pack.flashcards?.forEach((c, i) => items.push({ id: `${pack.id}|c|${i}`, type: 'card', q: c.q, a: c.a, packId: pack.id, uncertain: c.uncertain }));
+  pack.questions?.forEach((q, i) => items.push({ id: `${pack.id}|o|${i}`, type: 'open', q: q.q, keyPoints: q.keyPoints || [], packId: pack.id, uncertain: q.uncertain }));
   return items;
 }
 export const itemsFromPacks = (packs) => packs.flatMap(itemsOf);
@@ -142,6 +142,8 @@ export function buildSession({ topic, packs, progress, date, mini = false }) {
       steps.push({ kind: 'teach', title: 'Erklär es einem Freund', teach: pack.teachBack, packId: pack.id, nominalMin: 5 });
     }
   }
+  // Die Praxisaufgabe steht am Ende jeder normalen Lektion (nicht in Mini-Lektionen)
+  if (!mini && pack.practice?.task) steps.push({ kind: 'practice', title: 'Praxisaufgabe', practice: pack.practice, packId: pack.id, nominalMin: 2 });
   return { steps, pack, fod };
 }
 

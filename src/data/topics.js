@@ -8,5 +8,9 @@ export const DEFAULT_TOPICS = [
   { id: 'buecher', name: 'Bücher', icon: 'book', color: '#F472B6', hint: 'Aktiv lesen, Notizen, Zitate' },
   { id: 'schule', name: 'Schule', icon: 'cap', color: '#5B8CFF', hint: 'Mathe, Englisch, Deutsch, Informatik, Facharbeit', school: true, future: true },
   { id: 'selbstverteidigung', name: 'Selbstverteidigung', icon: 'shield', color: '#FF4D4D', hint: 'Distanz, Stand, Deeskalation, Recht' },
+  { id: 'gentleman', name: 'Gentleman & Charme', icon: 'user', color: '#8E7CF0', hint: 'Auftreten, Körpersprache, Gesprächsführung, Manieren, Selbstvertrauen ohne Show' },
+  { id: 'rhetorik', name: 'Rhetorik & freies Sprechen', icon: 'mic', color: '#E4572E', hint: 'Klar und frei sprechen, wichtig für spätere Geschäftsführung' },
+  { id: 'selbstorganisation', name: 'Selbstorganisation & Zeitmanagement', icon: 'clock', color: '#4DA3E8', hint: 'Prioritäten, Wochenplanung, Gewohnheiten' },
+  { id: 'kleidung', name: 'Kleidung & Stil', icon: 'shirt', color: '#B08968', hint: 'Passform, Anlässe, Grundgarderobe, Pflege' },
 ];
 export const topicById = (list, id) => list.find((t) => t.id === id);

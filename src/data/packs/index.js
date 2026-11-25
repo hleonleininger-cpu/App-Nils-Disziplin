@@ -1,9 +1,11 @@
 // Platzhalter-Inhalte pro Thema. Sie dienen dem Testen der App und sind NICHT quellengeprüft.
 // Echte Pakete kommen von Claude über den Import (siehe README, Abschnitt "Inhaltsformat").
+import { NEW_PACKS } from './neu.js';
 const note = { title: 'Platzhalter-Inhalt von Claude, nicht quellengeprüft' };
 const P = (o) => ({ format: 'disziplin-pack/1', level: 1, placeholder: true, sources: [note], ...o });
 
 export const BUILTIN_PACKS = [
+  ...NEW_PACKS,
   P({
     id: 'finanzen-zinseszins', topic: 'finanzen', title: 'Zinseszins und Inflation',
     summary: 'Wer Zinsen mitverzinsen lässt, wächst exponentiell. Inflation frisst Kaufkraft. Zusammen erklären sie, warum früh sparen und Geld arbeiten lassen so viel ausmacht.',
@@ -39,6 +41,7 @@ export const BUILTIN_PACKS = [
       mustInclude: ['Zinseszins', 'Inflation', 'Kaufkraft', 'Realzins'],
       followUps: ['Was ändert sich, wenn der Zinssatz von 5 auf 3 % sinkt?', 'Warum macht 1 % Unterschied langfristig so viel aus?'],
     },
+    practice: { task: 'Rechne heute dein eigenes Beispiel durch.', how: 'Nimm einen Betrag, den du dir vorstellen kannst (zum Beispiel 500 €), einen Zinssatz von 3 % und 5 %, und rechne 10 und 30 Jahre mit K = K0 · (1 + p)^n.', check: 'Du kannst den Unterschied zwischen 3 % und 5 % nach 30 Jahren laut erklären.' },
     scenarios: [{
       situation: 'Du bekommst 500 € zum Geburtstag und brauchst sie die nächsten Jahre nicht. Was machst du?',
       options: [
@@ -89,6 +92,7 @@ export const BUILTIN_PACKS = [
       mustInclude: ['Liquidität', 'Deckungsbeitrag', 'Fixkosten', 'Lager'],
       followUps: ['Was würdest du tun, wenn das Lager zu voll ist?', 'Woran erkennst du, ob ein Produkt sich lohnt?'],
     },
+    practice: { task: 'Berechne Aufschlag und Marge für ein Produkt.', how: 'Nimm ein Produkt (zum Beispiel aus dem Saunahandel), schätze Einkaufs- und Verkaufspreis netto und rechne beides aus.', check: 'Du hast zwei verschiedene Prozentzahlen und kannst den Unterschied erklären.' },
     scenarios: [{
       situation: 'Ein Lieferant bietet 8 % Mengenrabatt, wenn du vor der Saison das Doppelte bestellst. Dein Konto ist knapp. Was machst du?',
       options: [
@@ -134,6 +138,7 @@ export const BUILTIN_PACKS = [
       mustInclude: ['Index', 'Diversifikation', 'TER', 'Risiko'],
       followUps: ['Warum gehört Geld, das du bald brauchst, nicht in einen Aktien-ETF?', 'Was macht ein Sparplan?'],
     },
+    practice: { task: 'Schau dir den Kostenwert (TER) eines ETF an.', how: 'Suche beim Anbieter eines großen Welt-ETF das Factsheet und notiere TER, Index und Ausschüttungsart.', check: 'Du hast drei Angaben notiert und kannst erklären, was jede bedeutet.' },
     scenarios: [], cases: [],
   }),
   P({
@@ -168,6 +173,7 @@ export const BUILTIN_PACKS = [
       mustInclude: ['Variable', 'Schleife', 'Funktion', 'Parameter'],
       followUps: ['Was passiert bei einer Endlosschleife?', 'Warum nennt man Variablen nicht einfach x1, x2, x3?'],
     },
+    practice: { task: 'Schreib eine kleine Funktion.', how: 'Schreibe eine Funktion, die eine Liste von Zahlen addiert, mit Schleife und return. Teste sie mit drei Beispielen.', check: 'Die Funktion liefert bei allen drei Beispielen das richtige Ergebnis.' },
     scenarios: [],
     cases: [{
       type: 'detektiv', title: 'Der Summen-Fehler',
@@ -206,6 +212,7 @@ export const BUILTIN_PACKS = [
       mustInclude: ['offene Fragen', 'Paraphrasieren', 'aktiv zuhören'],
       followUps: ['Was machst du, wenn der andere nichts sagt?', 'Wie bleibst du ehrlich, wenn du etwas ablehnen willst?'],
     },
+    practice: { task: 'Paraphrasiere heute dreimal.', how: 'Gib in drei Gesprächen mit eigenen Worten wieder, was du verstanden hast, und stelle danach eine offene Frage.', check: 'Du hast drei Mal paraphrasiert und notierst, wie die Reaktion war.' },
     scenarios: [{
       situation: 'Ein Freund erzählt, dass er Stress mit seinen Eltern hat und wirkt genervt. Was sagst du?',
       options: [
@@ -245,6 +252,7 @@ export const BUILTIN_PACKS = [
       mustInclude: ['Baseline', 'Kontext', 'Cluster', 'nachfragen'],
       followUps: ['Was machst du, wenn du etwas Auffälliges bemerkst?', 'Warum sind Mikroausdrücke umstritten?'],
     },
+    practice: { task: 'Lerne eine Baseline kennen.', how: 'Beobachte eine vertraute Person heute fünf Minuten im normalen Gespräch: Haltung, Stimme, Gesten. Notiere nur Beobachtungen, keine Deutung.', check: 'Du hast mindestens vier beobachtbare Punkte und keine Deutung aufgeschrieben.' },
     scenarios: [], cases: [],
   }),
   P({
@@ -277,6 +285,7 @@ export const BUILTIN_PACKS = [
       mustInclude: ['Beobachtung', 'Hypothese', 'Bestätigungsfehler'],
       followUps: ['Wie prüfst du eine Hypothese?', 'Warum ist "wahrscheinlich" ehrlicher als "sicher"?'],
     },
+    practice: { task: 'Trenne Beobachtung und Deutung.', how: 'Schau dir einen Ort genau eine Minute an (Klassenraum, Bahnhof) und schreibe fünf Beobachtungen und zwei mögliche Erklärungen auf.', check: 'Fünf Beobachtungen ohne Wertung, zwei verschiedene Erklärungen.' },
     scenarios: [],
     cases: [{
       type: 'detektiv', title: 'Die warme Tasse',
@@ -312,6 +321,7 @@ export const BUILTIN_PACKS = [
       mustInclude: ['SQ3R', 'zusammenfassen', 'Notizen'],
       followUps: ['Wie viel liest du am Tag und warum?'],
     },
+    practice: { task: 'Fasse ein Kapitel in drei Sätzen zusammen.', how: 'Lies heute ein Kapitel deines Buchs und schreibe danach drei Sätze in eigenen Worten, ohne ins Buch zu schauen.', check: 'Drei Sätze stehen, die du ohne Buch erklären kannst.' },
     scenarios: [], cases: [],
   }),
   P({
@@ -345,6 +355,7 @@ export const BUILTIN_PACKS = [
       mustInclude: ['Steigung', 'Potenzregel', 'Kettenregel'],
       followUps: ['Wie findest du ein Maximum mit der Ableitung?', 'Wo siehst du Ableitungen im Alltag?'],
     },
+    practice: { task: 'Leite drei Funktionen ab.', how: 'Wähle eine Funktion mit Potenz, eine mit Produkt und eine mit Kettenregel und leite sie ab. Kontrolliere mit einem Rechner.', check: 'Alle drei Ergebnisse stimmen mit der Kontrolle überein.' },
     scenarios: [], cases: [],
   }),
   P({
@@ -371,6 +382,7 @@ export const BUILTIN_PACKS = [
     ],
     questions: [{ q: 'Wie baust du eine Facharbeit auf?', keyPoints: ['Einleitung', 'Hauptteil', 'Fazit', 'Quellenverzeichnis', 'Fragestellung'] }],
     teachBack: { prompt: 'Erkläre einem Freund, wie man eine Facharbeit anfängt: Thema, Fragestellung, Quellen.', mustInclude: ['Fragestellung', 'Quellen', 'Gliederung'], followUps: ['Wie erkennst du eine gute Quelle?'] },
+    practice: { task: 'Formuliere eine Fragestellung.', how: 'Schreibe drei Entwürfe für eine Fragestellung deiner Facharbeit und wähle die beste, die eng und beantwortbar ist.', check: 'Du hast eine Frage, die du in einem Satz beantworten könntest.' },
     scenarios: [], cases: [],
   }),
   P({
@@ -398,6 +410,7 @@ export const BUILTIN_PACKS = [
     ],
     questions: [{ q: 'Welche Schritte gehst du in einer bedrohlichen Situation, bevor es zu Körperkontakt kommt?', keyPoints: ['Abstand', 'Stimme', 'Hände', 'Fluchtweg', 'Hilfe'] }],
     teachBack: { prompt: 'Erkläre einem Freund, wie man brenzlige Situationen entschärft und was Notwehr bedeutet.', mustInclude: ['Deeskalation', 'Distanz', 'Notwehr'], followUps: ['Wann endet das Recht auf Notwehr?'] },
+    practice: { task: 'Übe Stand und Abstand.', how: 'Übe drei Minuten vor dem Spiegel: schulterbreiter Stand, Hände sichtbar auf Brusthöhe, ein ruhiger Satz wie „Stopp, ich will keinen Streit“.', check: 'Du stehst stabil und sprichst den Satz ruhig und laut genug.' },
     scenarios: [{
       situation: 'Du gehst abends an einer Gruppe vorbei, einer ruft dir etwas Aggressives hinterher.',
       options: [

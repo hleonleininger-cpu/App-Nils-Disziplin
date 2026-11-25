@@ -12,7 +12,8 @@ export const DEFAULT_SETTINGS = {
   project: '',
   sportEarliest: '16:00', // Joggen frühestens ab
   gymEarliest: '19:00', // Gym frühestens ab (immer abends)
-  focusShortcut: 'Fokus Lernen',
+  focusShortcut: 'Fokus Disziplin',
+  weeklyPages: 120, // Ziel der Wochenherausforderung "Seitenfresser" (leicht änderbar)
   topicDays: { min: 3, max: 10 }, // so lange bleibt ein Thema mindestens/höchstens am Stück dran
   maxExcuses: 1, // akzeptierte Begründungen pro Kalenderwoche
   learnSpeed: 1, // Testwert: 10 = Lernzeit läuft 10x schneller

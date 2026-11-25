@@ -5,20 +5,26 @@ export const PACK_FORMAT = 'disziplin-pack/1';
 
 export const PACK_SPEC = `{
   "format": "disziplin-pack/1",
-  "topic": "finanzen",                // ID des Themas: finanzen, investieren, programmieren, gespraech, mentalist, sherlock, buecher, schule, selbstverteidigung (oder eigenes)
+  "topic": "finanzen",                // ID des Themas: finanzen, investieren, programmieren, gespraech, mentalist, sherlock, buecher, schule, selbstverteidigung, gentleman, rhetorik, selbstorganisation, kleidung (oder eigenes)
   "title": "Titel der Lektion",
   "level": 1,                          // 1 = Einstieg, 2 = tiefer, 3 = Vertiefung
   "summary": "2-3 Sätze: worum geht es",
-  "sources": [{ "title": "Quelle", "url": "https://..." }],
-  "explain": [{ "heading": "Überschrift", "text": "Erklärung in kurzen Absätzen" }],
+  "sources": [                         // PFLICHT. Ohne Quellen lehnt die App das Paket ab.
+    { "title": "BGB § 488 (Darlehensvertrag)", "url": "https://www.gesetze-im-internet.de/bgb/__488.html" },
+    { "title": "Autor, Titel, Ausgabe, Jahr" }
+  ],
+  "uncertain": ["Aussage, die sich nicht sicher belegen lässt"],   // unbelegbare Aussagen, die App zeigt sie sichtbar als unsicher
+  "explain": [{ "heading": "Überschrift", "text": "Erklärung in kurzen Absätzen", "refs": ["BGB § 488"], "uncertain": false }],
   "terms": [{ "term": "Fachbegriff", "def": "Definition in einem Satz" }],
   "flashcards": [{ "q": "Frage", "a": "Antwort" }],
   "quiz": [{ "q": "Frage", "options": ["A", "B", "C", "D"], "answer": 1, "explain": "Warum" }],
   "questions": [{ "q": "Offene Frage", "keyPoints": ["Stichwort 1", "Stichwort 2"] }],
   "teachBack": { "prompt": "Erkläre einem Freund in 3 Minuten ...", "mustInclude": ["Fachbegriff 1", "Fachbegriff 2"], "followUps": ["Nachfrage 1", "Nachfrage 2"] },
+  "practice": { "task": "Alltagsaufgabe für heute", "how": "So gehst du vor", "check": "Woran du merkst, dass es geklappt hat" },
   "scenarios": [{ "situation": "Was würdest du tun?", "options": [{ "text": "Option", "feedback": "Rückmeldung", "best": true }] }],
   "cases": [{ "type": "fall", "title": "Fallrätsel", "story": "Geschichte", "question": "Frage", "solution": "Lösung" }]
-}`;
+}
+// Bei explain, terms, flashcards, quiz und questions kannst du "uncertain": true setzen, wenn die Aussage nicht belegbar ist.`;
 
 export const MD_SPEC = `# Titel der Lektion
 topic: finanzen
@@ -54,65 +60,100 @@ Aufgabe: Erkläre in 3 Minuten ...
 Begriffe: Begriff 1; Begriff 2
 Nachfragen: Frage 1; Frage 2
 
-## Quellen
-- Titel | https://...`;
+## Praxisaufgabe
+Aufgabe: Alltagsaufgabe für heute
+So geht's: So gehst du vor
+Check: Woran du merkst, dass es geklappt hat
 
-const str = (v, max = 4000) => (typeof v === 'string' ? v.trim().slice(0, max) : v == null ? '' : String(v).slice(0, max));
+## Unsicher
+- Aussage, die sich nicht sicher belegen lässt
+
+## Quellen (PFLICHT)
+- Titel, Autor, Ausgabe | https://...`;
+
+// Texte werden unverändert übernommen (nur Leerraum am Rand entfällt). Zu lange Texte werden gemeldet, nicht gekürzt.
+const MAX_LEN = 20000;
+const str = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v));
 const arr = (v) => (Array.isArray(v) ? v : []);
+const PLACEHOLDER_SRC = /^(platzhalter|quelle|quellen|source|n\.?\s?a\.?|unbekannt|keine|tbd|todo)\b/i;
 
-/** Prüft und bereinigt ein Paket. */
-export function validatePack(raw) {
+/**
+ * Prüft ein Paket. Der Inhalt wird unverändert übernommen. Fehlerhafte Teile werden gemeldet und führen zur
+ * Ablehnung, sie werden nicht stillschweigend weggelassen oder gekürzt.
+ * strict (Import): Quellen sind Pflicht, Platzhalter-Quellen zählen nicht, "placeholder" wird nicht übernommen.
+ */
+export function validatePack(raw, { strict = false } = {}) {
   const errors = [];
   const warnings = [];
-  if (!raw || typeof raw !== 'object') return { ok: false, errors: ['Kein Objekt.'], warnings, pack: null };
-  const topic = slug(str(raw.topic, 60));
-  const title = str(raw.title, 120);
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, errors: ['Kein Objekt.'], warnings, pack: null };
+  const long = [];
+  const S = (v, where) => {
+    const t = str(v);
+    if (t.length > MAX_LEN) long.push(where);
+    return t;
+  };
+  const topic = slug(str(raw.topic));
+  const title = S(raw.title, 'title');
   if (!topic) errors.push('Feld "topic" fehlt.');
   if (!title) errors.push('Feld "title" fehlt.');
+  const flag = (x) => Boolean(x?.uncertain || x?.unsicher);
   const pack = {
     format: PACK_FORMAT,
-    id: slug(str(raw.id, 80)) || slug(`${topic}-${title}`),
+    id: slug(str(raw.id)) || slug(`${topic}-${title}`),
     topic,
     title,
     level: Math.max(1, Math.min(5, Number(raw.level) || 1)),
-    summary: str(raw.summary, 1200),
-    sources: arr(raw.sources).map((s) => (typeof s === 'string' ? { title: str(s, 200) } : { title: str(s?.title, 200), url: /^https?:\/\//.test(s?.url || '') ? str(s.url, 500) : undefined })).filter((s) => s.title),
-    explain: arr(raw.explain).map((e) => ({ heading: str(e?.heading, 160), text: str(e?.text, 6000) })).filter((e) => e.text),
-    terms: arr(raw.terms).map((t) => ({ term: str(t?.term, 120), def: str(t?.def, 600) })).filter((t) => t.term && t.def),
-    flashcards: arr(raw.flashcards).map((c) => ({ q: str(c?.q, 500), a: str(c?.a, 1000) })).filter((c) => c.q && c.a),
+    summary: S(raw.summary, 'summary'),
+    sources: arr(raw.sources).map((x) => (typeof x === 'string' ? { title: S(x, 'sources') } : { title: S(x?.title, 'sources'), url: /^https?:\/\//.test(x?.url || '') ? str(x.url) : undefined })).filter((x) => x.title),
+    uncertain: arr(raw.uncertain).map((x) => S(x, 'uncertain')).filter(Boolean),
+    explain: arr(raw.explain).map((e, i) => ({ heading: S(e?.heading, `explain ${i + 1}`), text: S(e?.text, `explain ${i + 1}`), refs: arr(e?.refs).map((r) => str(r)).filter(Boolean), uncertain: flag(e) })).filter((e) => e.text),
+    terms: arr(raw.terms).map((t) => ({ term: S(t?.term, 'terms'), def: S(t?.def, 'terms'), uncertain: flag(t) })).filter((t) => t.term && t.def),
+    flashcards: arr(raw.flashcards).map((c) => ({ q: S(c?.q, 'flashcards'), a: S(c?.a, 'flashcards'), uncertain: flag(c) })).filter((c) => c.q && c.a),
     quiz: [],
-    questions: arr(raw.questions).map((q) => ({ q: str(q?.q, 600), keyPoints: arr(q?.keyPoints).map((k) => str(k, 120)).filter(Boolean) })).filter((q) => q.q),
+    questions: arr(raw.questions).map((q) => ({ q: S(q?.q, 'questions'), keyPoints: arr(q?.keyPoints).map((k) => S(k, 'questions')).filter(Boolean), uncertain: flag(q) })).filter((q) => q.q),
     teachBack: null,
+    practice: null,
     scenarios: [],
     cases: [],
-    placeholder: Boolean(raw.placeholder),
+    placeholder: strict ? false : Boolean(raw.placeholder),
   };
   arr(raw.quiz).forEach((q, i) => {
-    const options = arr(q?.options).map((o) => str(o, 300)).filter(Boolean);
+    const options = arr(q?.options).map((o) => S(o, 'quiz')).filter(Boolean);
     const answer = Number(q?.answer);
     if (!q?.q || options.length < 2 || !Number.isInteger(answer) || answer < 0 || answer >= options.length) {
-      warnings.push(`Quiz-Frage ${i + 1} übersprungen (Frage, mindestens 2 Optionen und gültiger "answer"-Index nötig).`);
+      errors.push(`Quiz-Frage ${i + 1} ist unvollständig (Frage, mindestens 2 Optionen und ein gültiger "answer"-Index von 0 bis ${Math.max(0, options.length - 1)} sind nötig).`);
       return;
     }
-    pack.quiz.push({ q: str(q.q, 600), options, answer, explain: str(q.explain, 800) });
+    pack.quiz.push({ q: S(q.q, 'quiz'), options, answer, explain: S(q.explain, 'quiz'), uncertain: flag(q) });
   });
   if (raw.teachBack && (raw.teachBack.prompt || typeof raw.teachBack === 'string')) {
     const t = typeof raw.teachBack === 'string' ? { prompt: raw.teachBack } : raw.teachBack;
-    pack.teachBack = { prompt: str(t.prompt, 800), mustInclude: arr(t.mustInclude).map((x) => str(x, 80)).filter(Boolean), followUps: arr(t.followUps).map((x) => str(x, 300)).filter(Boolean) };
+    pack.teachBack = { prompt: S(t.prompt, 'teachBack'), mustInclude: arr(t.mustInclude).map((x) => str(x)).filter(Boolean), followUps: arr(t.followUps).map((x) => S(x, 'teachBack')).filter(Boolean) };
   }
-  arr(raw.scenarios).forEach((s, i) => {
-    const options = arr(s?.options).map((o) => ({ text: str(o?.text, 400), feedback: str(o?.feedback, 600), best: Boolean(o?.best) })).filter((o) => o.text);
-    if (!s?.situation || options.length < 2) return warnings.push(`Szenario ${i + 1} übersprungen.`);
+  if (raw.practice && (raw.practice.task || typeof raw.practice === 'string')) {
+    const pr = typeof raw.practice === 'string' ? { task: raw.practice } : raw.practice;
+    pack.practice = { task: S(pr.task, 'practice'), how: S(pr.how, 'practice'), check: S(pr.check, 'practice') };
+  }
+  arr(raw.scenarios).forEach((sc, i) => {
+    const options = arr(sc?.options).map((o) => ({ text: S(o?.text, 'scenarios'), feedback: S(o?.feedback, 'scenarios'), best: Boolean(o?.best) })).filter((o) => o.text);
+    if (!sc?.situation || options.length < 2) return errors.push(`Szenario ${i + 1} ist unvollständig (situation und mindestens 2 Optionen nötig).`);
     if (!options.some((o) => o.best)) warnings.push(`Szenario ${i + 1} hat keine "best"-Option.`);
-    pack.scenarios.push({ situation: str(s.situation, 800), options });
+    pack.scenarios.push({ situation: S(sc.situation, 'scenarios'), options });
   });
   arr(raw.cases).forEach((c, i) => {
-    if (!c?.story || !c?.solution) return warnings.push(`Fall ${i + 1} übersprungen (story und solution nötig).`);
-    pack.cases.push({ type: c.type === 'detektiv' ? 'detektiv' : 'fall', title: str(c.title, 160) || `Fall ${i + 1}`, story: str(c.story, 3000), question: str(c.question, 600) || 'Was schließt du daraus?', solution: str(c.solution, 3000) });
+    if (!c?.story || !c?.solution) return errors.push(`Fall ${i + 1} ist unvollständig (story und solution nötig).`);
+    pack.cases.push({ type: c.type === 'detektiv' ? 'detektiv' : 'fall', title: S(c.title, 'cases') || `Fall ${i + 1}`, story: S(c.story, 'cases'), question: S(c.question, 'cases') || 'Was schließt du daraus?', solution: S(c.solution, 'cases') });
   });
-  const content = pack.explain.length + pack.flashcards.length + pack.quiz.length + pack.questions.length + pack.scenarios.length + pack.cases.length + (pack.teachBack ? 1 : 0);
-  if (!content) errors.push('Das Paket enthält keine Inhalte (explain, flashcards, quiz, questions, teachBack, scenarios oder cases).');
-  if (!pack.sources.length) warnings.push('Keine Quellen angegeben. Für verlässliche Inhalte sollten Quellen dabei sein.');
+  if (long.length) errors.push(`Zu langer Text in: ${[...new Set(long)].join(', ')} (mehr als ${MAX_LEN} Zeichen). Das Paket wird nicht gekürzt, bitte teilen.`);
+  const content = pack.explain.length + pack.flashcards.length + pack.quiz.length + pack.questions.length + pack.scenarios.length + pack.cases.length + (pack.teachBack ? 1 : 0) + (pack.practice ? 1 : 0);
+  if (!content) errors.push('Das Paket enthält keine Inhalte (explain, flashcards, quiz, questions, teachBack, practice, scenarios oder cases).');
+  // Quellen sind Pflicht
+  const realSources = pack.sources.filter((x) => !PLACEHOLDER_SRC.test(x.title));
+  if (strict) {
+    if (!pack.sources.length) errors.push('Keine Quellen: Das Feld "sources" fehlt oder ist leer. Ein Paket ohne Quellen wird abgelehnt. Trage Gesetze (mit Paragraph), Fachbücher (Autor, Ausgabe) oder offizielle Seiten (z. B. Bundesbank, EZB, Bundesregierung) ein.');
+    else if (!realSources.length) errors.push('Keine echten Quellen: Es steht nur ein Platzhalter im Feld "sources". Trage Gesetze (mit Paragraph), Fachbücher (Autor, Ausgabe) oder offizielle Seiten ein.');
+  } else if (!pack.sources.length) errors.push('Keine Quellen im Paket.');
+  if (pack.explain.some((e) => !e.refs.length) && pack.explain.length) warnings.push(`${pack.explain.filter((e) => !e.refs.length).length} Erklärabschnitt(e) ohne "refs" (Bezug zu einer Quelle). Jede Aussage soll einer Quelle zugeordnet sein.`);
   if (pack.quiz.length < 2 && pack.flashcards.length < 3) warnings.push('Wenig Übungsmaterial: lieber mindestens 3 Quiz-Fragen oder 4 Karteikarten.');
   return { ok: errors.length === 0, errors, warnings, pack };
 }
@@ -121,10 +162,11 @@ const splitList = (s) => s.split(/[;；]/).map((x) => x.trim()).filter(Boolean);
 
 export function parseMarkdown(md) {
   const lines = md.replace(/\r/g, '').split('\n');
-  const raw = { explain: [], terms: [], flashcards: [], quiz: [], questions: [], sources: [] };
+  const raw = { explain: [], terms: [], flashcards: [], quiz: [], questions: [], sources: [], uncertain: [] };
   let section = '';
   let cur = null; // aktueller Unterpunkt (explain-Abschnitt oder Quiz-Frage)
   let teach = null;
+  let practice = null;
   const summary = [];
   const flushCur = () => {
     if (cur && section === 'explain') raw.explain.push({ heading: cur.heading, text: cur.lines.join('\n').trim() });
@@ -150,7 +192,11 @@ export function parseMarkdown(md) {
       else if (/freund|teach/.test(h)) {
         section = 'teach';
         teach = teach || {};
-      } else if (/quelle/.test(h)) section = 'sources';
+      } else if (/praxis/.test(h)) {
+        section = 'practice';
+        practice = practice || {};
+      } else if (/unsicher/.test(h)) section = 'uncertain';
+      else if (/quelle/.test(h)) section = 'sources';
       else section = '';
       continue;
     }
@@ -189,6 +235,12 @@ export function parseMarkdown(md) {
       if ((m = line.match(/^(?:Aufgabe|Prompt):\s*(.+)/i))) teach.prompt = m[1].trim();
       else if ((m = line.match(/^Begriffe:\s*(.+)/i))) teach.mustInclude = splitList(m[1]);
       else if ((m = line.match(/^Nachfragen:\s*(.+)/i))) teach.followUps = splitList(m[1]);
+    } else if (section === 'practice') {
+      if ((m = line.match(/^Aufgabe:\s*(.+)/i))) practice.task = m[1].trim();
+      else if ((m = line.match(/^So geht'?s:\s*(.+)/i))) practice.how = m[1].trim();
+      else if ((m = line.match(/^Check:\s*(.+)/i))) practice.check = m[1].trim();
+    } else if (section === 'uncertain') {
+      if ((m = line.match(/^[-*]\s+(.+)/))) raw.uncertain.push(m[1].trim());
     } else if (section === 'sources') {
       if ((m = line.match(/^[-*]\s+(.+?)\s*\|\s*(https?:\/\/\S+)/))) raw.sources.push({ title: m[1], url: m[2] });
       else if ((m = line.match(/^[-*]\s+(.+)/))) raw.sources.push({ title: m[1] });
@@ -197,6 +249,7 @@ export function parseMarkdown(md) {
   flushCur();
   raw.summary = summary.join(' ');
   if (teach && teach.prompt) raw.teachBack = teach;
+  if (practice && practice.task) raw.practice = practice;
   return raw;
 }
 
@@ -205,7 +258,7 @@ export function extractJsonText(text) {
   let x = String(text || '').replace(/^\uFEFF/, '').trim();
   const fence = x.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) x = fence[1].trim();
-  if (!/^[\[{]/.test(x) && !/^#\s/m.test(x)) {
+  if (!/^[\[{]/.test(x) && !/^#\s/m.test(x) && !/^\s*"[\w-]+"\s*:/.test(x)) {
     const i = x.search(/[\[{]/);
     if (i >= 0) x = x.slice(i);
   }
@@ -254,6 +307,10 @@ export function describeJsonError(src, err) {
 export function parseImport(text) {
   const t = extractJsonText(text);
   if (!t) return { results: [], fatal: 'Nichts eingefügt.' };
+  // JSON ohne öffnende geschweifte Klammer ("topic": "x", ...) nicht als Markdown missverstehen
+  if (/^\s*"[\w-]+"\s*:/.test(t) && !/^#\s/m.test(t)) {
+    return { results: [], fatal: 'JSON unvollständig oder fehlerhaft: Am Anfang fehlt die öffnende geschweifte Klammer {' + (/\}\s*$/.test(t) ? ' (am Ende steht schon eine schließende).' : '.') + ' Das Paket wurde nicht gelesen, deshalb gibt es keine Feldfehler wie "topic fehlt".' };
+  }
   let raws = [];
   if (t.startsWith('{') || t.startsWith('[')) {
     let j;
@@ -275,5 +332,5 @@ export function parseImport(text) {
     // Mehrere Markdown-Pakete: durch eine Zeile "---" getrennt
     raws = t.split(/\n-{3,}\s*\n/).filter((x) => x.trim()).map(parseMarkdown);
   }
-  return { results: raws.map(validatePack), fatal: null };
+  return { results: raws.map((r) => validatePack(r, { strict: true })), fatal: null };
 }

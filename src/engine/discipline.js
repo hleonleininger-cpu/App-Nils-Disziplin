@@ -134,8 +134,9 @@ export const CHALLENGES = [
   { id: 'future', title: 'Zukunftswissen täglich', desc: 'An 7 Tagen die 15 Minuten Zukunftswissen.', target: 7, unit: 'Tage', measure: (ds) => ds.filter((s) => s.goals.find((g) => g.id === 'future').frac >= 1).length },
   { id: 'allgoals', title: 'Perfekter Tag', desc: 'Mindestens 2 Tage mit allen sechs Zielen.', target: 2, unit: 'Tage', measure: (ds) => ds.filter((s) => s.allDone).length },
 ];
-export function challengeFor(weekMonday) {
-  return CHALLENGES[hashStr(weekMonday) % CHALLENGES.length];
+export function challengeFor(weekMonday, weeklyPages = 120) {
+  const c = CHALLENGES[hashStr(weekMonday) % CHALLENGES.length];
+  return c.id === 'pages' ? { ...c, target: weeklyPages, desc: `${weeklyPages} Seiten lesen.` } : c;
 }
 
 export function weekDates(anyDate) {
