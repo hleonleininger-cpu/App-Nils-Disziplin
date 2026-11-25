@@ -48,8 +48,8 @@ export function buildReminders(date) {
   if (hw) out.push({ id: 'hw', at: hw.start, tag: 'learn', title: 'Hausaufgabe steht an', body: `${hw.title.replace('Hausaufgabe: ', '')}, ${hw.dur} Minuten.`, hard: 'Die Hausaufgabe wartet. Fang an. Jetzt.', cond: () => !(D().hwChunks && Object.keys(D().hwChunks).length) });
   const eve = plan.eveStart;
   out.push({ id: 'streakwarn', at: Math.min(eve - 90, hm('20:00')), tag: 'learn', title: 'Dein Streak hängt', body: 'Du hast heute noch keine 5 Minuten gelernt. Das reicht schon.', hard: 'Nils. Der Tag ist bald vorbei. Fünf Minuten Lernen retten die Streak. Mach es jetzt.', cond: () => (D().learnSec || 0) < 300 });
-  out.push({ id: 'eve-pre', at: eve - 15, tag: 'evening', title: 'In 15 Minuten: Abendcheck', body: 'Beende, was du angefangen hast. Handy gleich aus.', hard: 'Abendcheck steht gleich an. Rückblick, Gebet, Worte. Sei pünktlich.', cond: () => !D().evening?.done });
-  out.push({ id: 'eve', at: eve, tag: 'evening', title: 'Abendcheck', body: `Es ist ${fmt(eve)}. Feierabend.`, hard: 'Du hast den Abendcheck nicht gemacht. Ohne Rückblick bleibt der Tag offen.', cond: () => !D().evening?.done });
+  // Abendcheck: eine freundliche Erinnerung, keine harte Nachricht und nie "verpasst". Nils startet ihn selbst, wenn er zu Hause ist.
+  out.push({ id: 'eve', at: eve, tag: 'evening', title: 'Abendcheck bereit', body: 'Starte ihn, sobald du zu Hause bist. Danach Handy aus.', cond: () => !D().evening?.done });
   return out;
 }
 
@@ -127,7 +127,7 @@ export function tickReminders() {
   for (const [key, v] of [...pending]) {
     if (now >= v.at + hardDelay) {
       pending.delete(key);
-      if (v.r.cond() && store.getSettings().hardTone) fire(v.r, true);
+      if (v.r.hard && v.r.cond() && store.getSettings().hardTone) fire(v.r, true);
     }
   }
   saveFired(fired);

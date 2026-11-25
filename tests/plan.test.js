@@ -289,3 +289,4 @@ describe('Abendcheck ohne feste Uhrzeit, Gym 75 Minuten inklusive Weg', () => {
     expect(d.nextFixed?.kind).not.toBe('evening');
   });
 });
+
